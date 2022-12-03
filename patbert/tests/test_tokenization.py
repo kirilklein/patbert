@@ -1,4 +1,4 @@
-from medbert.features import tokenizer
+from patbert.features import tokenizer
 import pickle
 import os
 

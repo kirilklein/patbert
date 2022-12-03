@@ -1,6 +1,6 @@
 from torch.utils.data.dataset import Dataset
 import numpy as np
-from medbert.features.utils import random_mask, seq_padding
+from patbert.features.utils import random_mask, seq_padding
 import torch
 
 

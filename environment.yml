@@ -1,4 +1,4 @@
-name: medbert
+name: patbert
 channels:
   - HuggingFace
   - pytorch
@@ -153,4 +153,4 @@ dependencies:
   - zipp=3.8.0=py310haa95532_0
   - zlib=1.2.13=h8cc25b3_0
   - zstd=1.5.2=h19a0ad4_0
-prefix: D:\Programme\miniconda3\envs\medbert
+prefix: D:\Programme\miniconda3\envs\patbert

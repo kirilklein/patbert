@@ -4,8 +4,8 @@ import torch
 import numpy as np
 import pandas as pd
 import torch
-from medbert.features.dataset import MLM_PLOS_Dataset
-from medbert.models.utils import Encoder
+from patbert.features.dataset import MLM_PLOS_Dataset
+from patbert.models.utils import Encoder
 
 
 def main(

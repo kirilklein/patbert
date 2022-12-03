@@ -1,4 +1,4 @@
-from medbert.models import mlm_plos_pretraining
+from patbert.models import mlm_plos_pretraining
 from os.path import join
 
 

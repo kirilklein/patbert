@@ -1,6 +1,6 @@
 from transformers import Trainer, BertConfig, BertForPreTraining
-from medbert.features.embeddings import BertEmbeddings
-from medbert.common import common, pytorch
+from patbert.features.embeddings import BertEmbeddings
+from patbert.common import common, pytorch
 import torch
 from tqdm import tqdm
 import os 

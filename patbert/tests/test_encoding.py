@@ -1,4 +1,4 @@
-import medbert.models.get_encoding as get_encoding
+import patbert.models.get_encoding as get_encoding
 import typer
 from os.path import join
 

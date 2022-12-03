@@ -1,4 +1,4 @@
-from medbert.data import generate
+from patbert.data import generate
 import numpy as np
 
 def test_generate(num_patients=10,

@@ -1,8 +1,8 @@
 import os
 from os.path import split
 import torch
-from medbert.features.dataset import PatientDatum
-from medbert.features.embeddings import BertEmbeddings
+from patbert.features.dataset import PatientDatum
+from patbert.features.embeddings import BertEmbeddings
 from bertviz import model_view, head_view
 
 
