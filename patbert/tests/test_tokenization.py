@@ -3,8 +3,8 @@ import pickle
 import os
 
 def test_tokenizer(max_len=20):
-    assert os.path.exists("data\\raw\\example_data.pkl"), "Generate example data first" 
-    with open("data\\raw\\example_data.pkl", 'rb') as f:
+    assert os.path.exists("data\\raw\\simulated.pkl"), "Generate example data first" 
+    with open("data\\raw\\simulated.pkl", 'rb') as f:
         data = pickle.load(f)
     num_patients = len(data)
     Tokenizer = tokenizer.EHRTokenizer()

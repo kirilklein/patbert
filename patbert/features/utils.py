@@ -9,16 +9,16 @@ def random_mask(codes, vocab, mask_prob=0.15):
         10% of the time replace with random token, 10% of the time keep original"""
     masked_codes = codes
     labels = len(codes) * [-100] # -100 is ignored by loss function
-    mask_inds = rng.randint(len(codes))
-    prob = np.random.uniform()
-    if prob<mask_prob:
-        prob = np.random.uniform()   
-        if prob < 0.8:
-            masked_codes[mask_code] = vocab['MASK']
-            labels[mask_code] = vocab['UNK']
-        # 10% randomly change token to random token
-        elif prob < 0.9:
-            masked_codes[mask_code] = random.choice(list(vocab.values())[5:]) # first five tokens special!
+    prob = rng.uniform()
+    for i, _ in enumerate(masked_codes):
+        if prob<mask_prob:
+            prob = rng.uniform()   
+            if prob < 0.8:
+                masked_codes[i] = vocab['MASK']
+                labels[i] = vocab['UNK']
+            # 10% randomly change token to random token
+            elif prob < 0.9:
+                masked_codes[i] = rng.choice(list(vocab.values())[5:]) # first five tokens special!
     return masked_codes, labels
 
 def seq_padding(seq, max_len, vocab):
