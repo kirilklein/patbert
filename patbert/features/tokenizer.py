@@ -7,9 +7,11 @@ class EHRTokenizer():
     def __init__(self, vocabulary=None):
         if isinstance(vocabulary, type(None)):
             self.vocabulary = {
-                'PAD':0,
-                'MASK':1,
-                'UNK':2,
+                'CLS':0,
+                'PAD':1,
+                'SEP':2,
+                'MASK':3,
+                'UNK':4,
             }
         else:
             self.vocabulary = vocabulary
