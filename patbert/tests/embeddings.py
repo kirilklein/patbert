@@ -1,10 +1,12 @@
 import torch
 from torch import nn
+import string
+from patbert.features import embeddings
 # Define a vocabulary of 10 tokens
 vocab_size = 10
-
 # Define the dimensionality of the token embeddings
 embedding_dim = 2
+
 
 # Initialize the token embeddings randomly
 embeddings = torch.nn.Embedding(vocab_size, embedding_dim)
@@ -25,14 +27,19 @@ class Model(nn.Module):
         super().__init__()
         self.embedding = torch.nn.Embedding(10, 20)
         self.F1 = nn.Linear(20, 3)
+        self.nF1 = nn.GELU()
         self.F2 = nn.Linear(3, 1)
     
     def forward(self, x):
         x = self.embedding(x)
         x = self.F1(x)	
+        x = self.nF1(x)
         x = self.F2(x)
         
         return x
+# list all capital english letters
+
+
 model = Model()
 token_embeddings = model.embedding(tokens)
 print(token_embeddings.shape)
