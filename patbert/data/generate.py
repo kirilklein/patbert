@@ -92,11 +92,14 @@ class DataGenerator(super):
         return datetime(year, month, day)
 
     def generate_randomICD10_codes(self, n):
-        letters = np.random.choice([char for char in string.ascii_uppercase], 
+        letters = self.rng.choice([char for char in string.ascii_uppercase], 
             size=n, replace=True)
-        numbers = np.random.choice(np.arange(1000), size=n, replace=True)
-        codes = [letter + str(number).zfill(3)[:2] + '.' + str(number)[-1] for \
-            letter, number in zip(letters, numbers)]
+        numbers_category = self.rng.choice(np.arange(100), size=n, replace=True)
+        numbers_subcategory = self.rng.choice(np.arange(1000), size=n, replace=True)
+        lengths = self.rng.integers(low=1, high=4, size=n)
+        codes = [letter + str(number_category).zfill(2) + str(number_subcategory).zfill(3)[:length] for \
+            letter, number_category, number_subcategory, length \
+                in zip(letters, numbers_category, numbers_subcategory, lengths)]
         return codes
 
     def generate_randomATC_codes(self, n):

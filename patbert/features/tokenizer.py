@@ -3,6 +3,8 @@ import typer
 import string
 import pickle as pkl
 from os.path import join, split
+from patbert.common.medical import ICD_category
+
 
 class EHRTokenizer():
     def __init__(self, vocabulary=None):
@@ -66,87 +68,42 @@ class HierarchicalTokenizer():
         return self.batch_encode(seq)
 
     def encode(self, seq):
-        for code in codes:
-
-            if code not in self.vocabulary:
-                self.vocabulary[code] = len(self.vocabulary)
-        return [self.vocabulary[code] for code in seq]
+        idx_seq  = []
+        for code, mod in zip(seq['codes'], seq['modalities']):
+            if mod == 'ICD10':
+                cat = ICD_category(code)
+                group = f"ICD10_{cat}"
+            elif mod == 'ATC':
+                group = f"ATC_{code[0]}"
+            elif mod == 'LAB':
+                group = code
+            else:
+                group = 'UNK'
+            if group not in self.vocabulary:
+                self.vocabulary[group] = len(self.vocabulary)
+                idx_seq.append(self.vocabulary[group])
+        return idx_seq
 
     def batch_encode(self, seqs, max_len=None):
         if isinstance(max_len, type(None)):
             max_len = max([len(seq) for seq in seqs])
-        pat_ids = [seq[0] for seq in seqs]
-        los_seqs = [seq[1] for seq in seqs]
-        code_seqs = [seq[2] for seq in seqs] # icd codes
-        visit_seqs = [seq[3] for seq in seqs]
-        if isinstance(max_len, type(None)):
-            max_len = max([len(seq) for seq in code_seqs])    
-        output_code_seqs = []
-        output_visit_seqs = []
         # let's do the padding later
-        for code_seq, visit_seq in zip(code_seqs, visit_seqs):
+        for seq in seqs:
             # truncation
-            if len(code_seq)>max_len:
-                code_seq = code_seq[:max_len]
-                visit_seq = visit_seq[:max_len]
+            if len(seq['codes'])>max_len:
+                codes = seq['codes'][-max_len:]
+                modalities = seq['modalities'][-max_len:]
+                seq['codes'] = codes
             # Tokenizing
             tokenized_code_seq = self.encode(code_seq)
-            output_code_seqs.append(tokenized_code_seq)
-            output_visit_seqs.append(visit_seq)
-        tokenized_data_dic = {'pats':pat_ids, 'los':los_seqs, 'codes':output_code_seqs, 
-                            'segments':output_visit_seqs}
-        return tokenized_data_dic
+            
+        return tokenized_code_seq
 
     def save_vocab(self, dest):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
 
-def first_icd_level_tokenizer(code):
-    ABC = string.ascii_uppercase
-    if code[:3] >= "A00" and code[:3] <= "B99":
-        return 1
-    if code[:3] >= "C00" and code[:3] <= "D49":
-        return 2
-    if code[:3] >= "D50" and code[:3] <= "D89":
-        return 3
-    if code[:3] >= "E00" and code[:3] <= "E90":
-        return 4
-    if code[:3] >= "F01" and code[:3] <= "F99":
-        return 5
-    if code[:3] >= "G00" and code[:3] <= "G99":
-        return 6
-    if code[:3] >= "H00" and code[:3] <= "H59":
-        return 7
-    if code[:3] >= "H60" and code[:3] <= "H95":
-        return 8
-    if code[:3] >= "I00" and code[:3] <= "I99":
-        return 9
-    if code[:3] >= "J00" and code[:3] <= "J99":
-        return 10
-    if code[:3] >= "K00" and code[:3] <= "K93":
-        return 11
-    if code[:3] >= "L00" and code[:3] <= "L99":
-        return 12
-    if code[:3] >= "M00" and code[:3] <= "M99":
-        return 13
-    if code[:3] >= "N00" and code[:3] <= "N99":
-        return 14
-    if code[:3] >= "O00" and code[:3] <= "O99":
-        return 15
-    if code[:3] >= "P00" and code[:3] <= "P96":
-        return 16
-    if code[:3] >= "Q00" and code[:3] <= "Q99":
-        return 17
-    if code[:3] >= "R00" and code[:3] <= "R99":
-        return 18
-    if code[:3] >= "S00" and code[:3] <= "T98":
-        return 19
-    if code[:3] >= "V01" and code[:3] <= "Y98":
-        return 20
-    if code[:3] >= "Z00" and code[:3] <= "Z99":
-        return 21
-    else: 
-        return -1
+
 
 def main(
     input_data_path: str = typer.Argument(..., 
