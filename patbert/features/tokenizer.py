@@ -3,7 +3,7 @@ import typer
 import string
 import pickle as pkl
 from os.path import join, split
-from patbert.common.medical import ICD_category
+from patbert.medical import icd
 
 
 class EHRTokenizer():
@@ -63,7 +63,7 @@ class EHRTokenizer():
 class HierarchicalTokenizer():
     def __init__(self, vocabulary=None):
         super().__init__(vocabulary)
-
+        
     def __call__(self, seq):
         return self.batch_encode(seq)
 
@@ -71,8 +71,8 @@ class HierarchicalTokenizer():
         idx_seq  = []
         for code, mod in zip(seq['codes'], seq['modalities']):
             if mod == 'ICD10':
-                cat = ICD_category(code)
-                group = f"ICD10_{cat}"
+                topic = icd.ICD_topic(code)
+                group = f"ICD10_{topic}"
             elif mod == 'ATC':
                 group = f"ATC_{code[0]}"
             elif mod == 'LAB':
