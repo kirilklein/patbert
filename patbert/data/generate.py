@@ -8,7 +8,8 @@ from datetime import datetime
 class DataGenerator(super):
     def __init__(self, num_patients, min_num_visits, max_num_visits, 
         min_num_codes_per_visit, max_num_codes_per_visit, min_los, 
-        max_los, num_atc_codes, num_icd_codes, num_lab_test=500, age_lower_bound=0, seed=42):
+        max_los, num_atc_codes, num_icd_codes, num_lab_test=500, age_lower_bound=0, seed=42,
+        start_date=datetime(2010, 1, 1)):
         """
         Simulates data as lists:
             [pid, los_ls, all_visit_codes, visit_nums]
@@ -26,6 +27,7 @@ class DataGenerator(super):
         self.num_atc_codes = num_atc_codes
         self.age_lower_bound = age_lower_bound
         self.num_lab_tests = num_lab_test
+        self.start_date = start_date
         self.rng = np.random.default_rng(seed)
     
     # generate atc codes
@@ -50,10 +52,12 @@ class DataGenerator(super):
         values = np.array(values)[idx].tolist()
         visit_nums = np.arange(1, num_visits+1) # should start with 1!
         visit_nums = np.repeat(visit_nums, num_codes_per_visit_ls).tolist()
-
+        
         birthdate = self.generate_birthdate()
         ages = self.generate_ages(num_visits, birthdate) # pass age as days or rounded years?
+        absolute_position = self.generate_absolute_position(ages, birthdate) # in days
         ages = np.repeat(ages, num_codes_per_visit_ls).tolist()
+        absolute_position = np.repeat(absolute_position, num_codes_per_visit_ls).tolist()
 
         patient_dic = {
             'pid':pid,
@@ -63,6 +67,7 @@ class DataGenerator(super):
             'ages':ages,
             'los':los,
             'visits':visit_nums,
+            'absolute_position':absolute_position,
             'modalities':modalities,
             'values':values
         }
@@ -81,6 +86,15 @@ class DataGenerator(super):
             age_lower_bound = random_age 
             random_age = self.rng.poisson(2, 1)[0] + random_age
         return ages
+        
+    def generate_absolute_position(self, ages, birthdate):
+        absolute_positions = []
+        birthdate_difference = self.start_date - birthdate
+        for age in ages:
+            days_since_start = age*365-birthdate_difference.days
+            days_since_start += self.rng.poisson(2,1)[0]
+            absolute_positions.append(days_since_start)
+        return absolute_positions
 
     def generate_sex(self):
         return self.rng.binomial(1, 0.5)
