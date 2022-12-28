@@ -12,8 +12,8 @@ class EHRTokenizer():
             special_tokens = ['CLS', 'PAD', 'SEP', 'MASK', 'UNK', 'RARE_ICD', 'RARE_ATC', 'RARE_LAB', 'MALE', 'FEMALE']
             birthyear_tokens = [f'BIRTHYEAR_{year}' for year in range(1900, 2022)]
             birthmonth_tokens = [f'BIRTHMONTH_{month}' for month in range(1, 13)]
-            special_tokens = special_tokens + birthyear_tokens + birthmonth_tokens
-            self.vocabulary = {token:idx for idx, token in enumerate(special_tokens)}
+            self.special_tokens = special_tokens + birthyear_tokens + birthmonth_tokens
+            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
 
@@ -66,6 +66,7 @@ class HierarchicalTokenizer(EHRTokenizer):
         self.top_lvl_vocab = self.vocabulary.copy()
         self.max_len = max_len
         self.len_background = len_background
+        self.token_to_top_lvl = {}
     def __call__(self, seqs):
         return self.batch_encode(seqs)
 
@@ -79,7 +80,7 @@ class HierarchicalTokenizer(EHRTokenizer):
            
             first_visit = 1
             
-            for (code, age, los, visit, abs_pos, mod, value) in zip(*list(seq.values())[3:]):
+            for (code, age, los, visit, abs_pos, value) in zip(*list(seq.values())[3:]):
                 if visit>first_visit:
                     idx_ls.append(self.vocabulary['SEP']), top_level_idx_ls.append(self.top_lvl_vocab['SEP'])
                     code_ls.append('SEP'), mod_ls.append('SEP')
@@ -88,13 +89,12 @@ class HierarchicalTokenizer(EHRTokenizer):
                     value_ls.append(1)
                     first_visit = visit        
                 # we will add the background sentence later, as it requires additional embeddings
-                code_ls.append(code), mod_ls.append(mod)
-                idx_ls.append(self.encode(code, mod)), top_level_idx_ls.append(self.encode_top_lvl(code, mod))
+                code_ls.append(code)
+                idx_ls.append(self.encode(code)), top_level_idx_ls.append(self.encode_top_lvl(code))
                 visit_ls.append(visit)
                 age_ls.append(age), los_ls.append(los), abs_pos_ls.append(abs_pos), value_ls.append(value)
             
             seq['codes'] = code_ls
-            seq['mods'] = mod_ls
             seq['idx'] = idx_ls
             seq['top_lvl_idx'] = top_level_idx_ls
             seq['ages'] = age_ls
@@ -110,7 +110,6 @@ class HierarchicalTokenizer(EHRTokenizer):
     def insert_first_sep_token(self, seq):
         """We insert zeros, sep and 1s, we might try a different value which will be mapped onto a zero vector"""
         seq['codes'].insert(0, 'SEP')
-        seq['mods'].insert(0, 'SEP')
         seq['idx'].insert(0, self.vocabulary['SEP'])
         seq['top_lvl_idx'].insert(0, self.vocabulary['SEP'])
         seq['visits'].insert(0, 0)
@@ -128,7 +127,6 @@ class HierarchicalTokenizer(EHRTokenizer):
                     # we don't want to start a sequence with SEP
                     max_len = max_len - 1
                 seq['codes'] = seq['codes'][-max_len:]
-                seq['mods'] = seq['mods'][-max_len:]
                 seq['idx'] = seq['idx'][-max_len:]
                 seq['top_lvl_idx'] = seq['top_lvl_idx'][-max_len:]
                 seq['ages'] = seq['ages'][-max_len:]
@@ -143,24 +141,22 @@ class HierarchicalTokenizer(EHRTokenizer):
             self.vocabulary[code] = len(self.vocabulary)
         return self.vocabulary[code]
         
-    def encode_top_lvl(self, code, mod):
+    def encode_top_lvl(self, code):
         """Encode top level (first level in hierarchy) token for a given code and modality"""
-        
-        if mod == 'ICD10':
-            topic = ICD_topic(code) # ICD code_ls are separated by topics at the highest level, e.g. A00-B99 is infectious and parasitic diseases
-            group = f"ICD10_{topic}"
-        elif mod == 'ATC': # The first letter determines the top level group
-            group = f"ATC_{code[0]}"
-        elif mod == 'LAB': # No hierarchy for lab code_ls
-            group = code
-        elif mod == "SKIP":
+        if code[0] == 'D':
+            topic = ICD_topic(code[1:]) # ICD code_ls are separated by topics at the highest level, e.g. A00-B99 is infectious and parasitic diseases
+            group = f"D{topic}"
+        elif code[0]== 'A': # we use A for ATC because M is taken for MASK
+            group = f"A{code[0]}"
+        elif code[0] == 'L': # No hierarchy for lab code_ls
             group = code
         else:
-            Warning(f"Modality {mod} not recognized")
+            if code not in self.special_tokens:
+                Warning(f"Modality of code {code} not recognized, set to unknown (UNK)")
             group = 'UNK'
         if group not in self.top_lvl_vocab:
             self.top_lvl_vocab[group] = len(self.top_lvl_vocab)
-
+        self.token_to_top_lvl[code] = group
         return self.top_lvl_vocab[group]
 
     # add special tokens
@@ -170,6 +166,7 @@ class HierarchicalTokenizer(EHRTokenizer):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
         torch.save(self.top_lvl_vocab, dest.replace('.pt', '_top_lvl.pt'))
+        torch.save(self.top_lvl_vocab, dest.replace('.pt', '_token_to_top_lvl.pt'))
 
 
 

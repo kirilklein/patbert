@@ -29,7 +29,7 @@ class BertEmbeddings(nn.Module):
 
 
 class HierarchicalEmbedding(nn.Module):
-    def __init__(self, vocab, embedding_dim, num_lab_tests, embedding_matrix):
+    def __init__(self, vocab, token_to_top_lvl, embedding_dim, num_lab_tests, embedding_matrix):
         super().__init__()
         self.ABC = string.ascii_uppercase
         self.initial_embedding = self.get_initial_embedding(vocab)
@@ -79,8 +79,14 @@ class HierarchicalEmbedding(nn.Module):
     def lab_embedding(self, code, val):
         return self.first_level_embedding(code)*val 
 
-def create_initial_matrix(vocab, top_lvl_vocab, embedding_dim):
-    embedding_matrix = np.zeros((len(vocab), embedding_dim))
-    for i, word in enumerate(vocab):
-        embedding_matrix[i] = np.random.normal(0, 0.1, embedding_dim)
-    return embedding_matrix
+class Hierarchical_Embedding(nn.Embedding):
+    def __init__(self, vocab, token_to_top_lvl, embedding_dim):
+        # create the original embedding but with predefined weights
+        self.embedding_dim = embedding_dim
+        self.token_to_top_lvl = token_to_top_lvl
+        self.num_embeddings = len(vocab)
+        super().__init__(self.num_embeddings, self.embedding_dim, _weight=self.initialize_weights())
+        
+    def initialize_weights(self):
+        return torch.zeros(self.num_embeddings, self.embedding_dim)
+
