@@ -55,9 +55,8 @@ class DataGenerator(super):
         
         birthdate = self.generate_birthdate()
         ages = self.generate_ages(num_visits, birthdate) # pass age as days or rounded years?
-        absolute_position = self.generate_absolute_position(ages, birthdate) # in days
         ages = np.repeat(ages, num_codes_per_visit_ls).tolist()
-        absolute_position = np.repeat(absolute_position, num_codes_per_visit_ls).tolist()
+        absolute_position = self.generate_absolute_position(ages, los, birthdate) # in days
 
         patient_dic = {
             'pid':pid,
@@ -67,8 +66,8 @@ class DataGenerator(super):
             'ages':ages,
             'los':los,
             'visits':visit_nums,
-            'absolute_position':absolute_position,
-            'modalities':modalities,
+            'abs_pos':absolute_position,
+            'mods':modalities,
             'values':values
         }
         return patient_dic
@@ -87,13 +86,25 @@ class DataGenerator(super):
             random_age = self.rng.poisson(2, 1)[0] + random_age
         return ages
         
-    def generate_absolute_position(self, ages, birthdate):
+    def generate_absolute_position(self, ages, los_ls, birthdate):
         absolute_positions = []
         birthdate_difference = self.start_date - birthdate
-        for age in ages:
-            days_since_start = age*365-birthdate_difference.days
-            days_since_start += self.rng.poisson(2,1)[0]
+        new_age = ages[0]
+        days_since_start = new_age*365-birthdate_difference.days
+        additional_days = 0
+        for age, los in zip(ages, los_ls):
+            if age != new_age: 
+                days_since_start  = age*365-birthdate_difference.days
+                new_age = age
+                additional_days = 0
+            additional_days += self.rng.poisson(int(los/2),1)[0]
+            
+            if additional_days > los:
+                additional_days = los
+            days_since_start = days_since_start + additional_days
+            
             absolute_positions.append(days_since_start)
+            
         return absolute_positions
 
     def generate_sex(self):
@@ -134,6 +145,7 @@ class DataGenerator(super):
         for pid in range(self.num_patients):
             yield self.generate_patient_history('p_'+str(pid))
 
+
 def main(num_patients : int = typer.Argument(...), 
         save_name: str = typer.Argument(..., 
         help="name of the file to save the data to, should end with .pkl"),
@@ -145,10 +157,11 @@ def main(num_patients : int = typer.Argument(...),
         max_los: int = typer.Option(30),
         num_atc_codes: int = typer.Option(1000),
         num_icd_codes: int = typer.Option(1000),
-        num_lab_tests: int = typer.Option(1000)):
+        num_lab_tests: int = typer.Option(1000),
+        seed: int = typer.Option(42)):
     generator = DataGenerator(num_patients, min_num_visits, max_num_visits, 
         min_num_codes_per_visit, max_num_codes_per_visit, 
-        min_los, max_los, num_atc_codes, num_icd_codes, num_lab_tests)
+        min_los, max_los, num_atc_codes, num_icd_codes, num_lab_tests, seed=seed)
     with open(save_name, 'wb') as f:
         pkl.dump([hist for hist in generator.simulate_data()], f)
     #print([hist for hist in generator.simulate_data()])
