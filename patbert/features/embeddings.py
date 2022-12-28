@@ -29,9 +29,10 @@ class BertEmbeddings(nn.Module):
 
 
 class HierarchicalEmbedding(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, num_lab_tests, embedding_matrix):
+    def __init__(self, vocab, embedding_dim, num_lab_tests, embedding_matrix):
         super().__init__()
         self.ABC = string.ascii_uppercase
+        self.initial_embedding = self.get_initial_embedding(vocab)
         self.first_level_embedding = nn.Embedding(2*self.ABC + num_lab_tests, embedding_dim)
         self.integer_embedding = nn.Embedding(10, embedding_dim)
         self.lab_test_embedding = nn.Embedding(num_lab_tests, embedding_dim)
@@ -77,3 +78,9 @@ class HierarchicalEmbedding(nn.Module):
 
     def lab_embedding(self, code, val):
         return self.first_level_embedding(code)*val 
+
+def create_initial_matrix(vocab, top_lvl_vocab, embedding_dim):
+    embedding_matrix = np.zeros((len(vocab), embedding_dim))
+    for i, word in enumerate(vocab):
+        embedding_matrix[i] = np.random.normal(0, 0.1, embedding_dim)
+    return embedding_matrix

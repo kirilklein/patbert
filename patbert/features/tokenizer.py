@@ -10,6 +10,9 @@ class EHRTokenizer():
     def __init__(self, vocabulary=None):
         if isinstance(vocabulary, type(None)):
             special_tokens = ['CLS', 'PAD', 'SEP', 'MASK', 'UNK', 'RARE_ICD', 'RARE_ATC', 'RARE_LAB', 'MALE', 'FEMALE']
+            birthyear_tokens = [f'BIRTHYEAR_{year}' for year in range(1900, 2022)]
+            birthmonth_tokens = [f'BIRTHMONTH_{month}' for month in range(1, 13)]
+            special_tokens = special_tokens + birthyear_tokens + birthmonth_tokens
             self.vocabulary = {token:idx for idx, token in enumerate(special_tokens)}
         else:
             self.vocabulary = vocabulary
@@ -74,7 +77,6 @@ class HierarchicalTokenizer(EHRTokenizer):
             # it is easier to add the CLS token when concatenating with background sentence
             # since we cut off the sequence at the beginning, we will add the sep token later
            
-
             first_visit = 1
             
             for (code, age, los, visit, abs_pos, mod, value) in zip(*list(seq.values())[3:]):
@@ -87,7 +89,7 @@ class HierarchicalTokenizer(EHRTokenizer):
                     first_visit = visit        
                 # we will add the background sentence later, as it requires additional embeddings
                 code_ls.append(code), mod_ls.append(mod)
-                idx_ls.append(self.encode(code)), top_level_idx_ls.append(self.encode_top_lvl(code, mod))
+                idx_ls.append(self.encode(code, mod)), top_level_idx_ls.append(self.encode_top_lvl(code, mod))
                 visit_ls.append(visit)
                 age_ls.append(age), los_ls.append(los), abs_pos_ls.append(abs_pos), value_ls.append(value)
             
