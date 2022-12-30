@@ -18,7 +18,7 @@ def random_mask(codes, vocab, mask_prob=0.15):
                 labels[i] = vocab['UNK']
             # 10% randomly change token to random token
             elif prob < 0.9:
-                masked_codes[i] = rng.choice(list(vocab.values())[5:]) # first five tokens special!
+                masked_codes[i] = rng.choice(list(vocab.values())[9:]) # first 9 tokens are special!
     return masked_codes, labels
 
 def seq_padding(seq, max_len, vocab):
