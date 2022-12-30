@@ -1,8 +1,11 @@
-from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
+
+
 def add_zoom_inset(ax, zoom,loc, x,y, xlim, ylim , sy = None, 
                    xlabel = '', ylabel = '', label_fs = 18,
                    mark_inset_loc = (3,1), borderpad = 4,
-                   bbox_to_anchor = None, bbox_transform = None):
+                   bbox_to_anchor = None, bbox_transform = None,
+                   visible_axis=False):
     """Add inset axis that shows a region of the data.
     
     Parameters:
@@ -35,4 +38,7 @@ def add_zoom_inset(ax, zoom,loc, x,y, xlim, ylim , sy = None,
     axins.set_xlim(xlim) # Limit the region for zoom
     mark_inset(ax, axins, loc1=mark_inset_loc[0], 
                loc2=mark_inset_loc[1], fc="none", ec="0.5")
+    if not visible_axis:
+        axins.axes.get_xaxis().set_visible(False)
+        axins.axes.get_yaxis().set_visible(False)
     return axins
