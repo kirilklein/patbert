@@ -45,10 +45,8 @@ class DataGenerator(super):
         lab_tests = self.generate_lab_tests(self.num_lab_tests)
         codes = icd_codes + atc_codes + lab_tests
         values = [1]*(len(icd_codes)+len(atc_codes)) + self.rng.normal(size=len(lab_tests)).tolist()
-        modalities = ['ICD10']*len(icd_codes) + ['ATC']*len(atc_codes) + ['LAB']*len(lab_tests)
         idx = self.rng.choice(np.arange(len(codes)), np.sum(num_codes_per_visit_ls), replace=True)
         codes = np.array(codes)[idx].tolist()
-        modalities = np.array(modalities)[idx].tolist()
         values = np.array(values)[idx].tolist()
         visit_nums = np.arange(1, num_visits+1) # should start with 1!
         visit_nums = np.repeat(visit_nums, num_codes_per_visit_ls).tolist()
@@ -67,7 +65,6 @@ class DataGenerator(super):
             'los':los,
             'visits':visit_nums,
             'abs_pos':absolute_position,
-            'mods':modalities,
             'values':values
         }
         return patient_dic
@@ -117,28 +114,34 @@ class DataGenerator(super):
         return datetime(year, month, day)
 
     def generate_randomICD10_codes(self, n):
+        """Diseases are coded using the ICD-10 classification system. 
+        To indicate a disease the code starts with a capital D followed by a letter and a number. 
+        ICD codes are divided into topics, then into categories and subcategories.
+        """
         letters = self.rng.choice([char for char in string.ascii_uppercase], 
             size=n, replace=True)
         numbers_category = self.rng.choice(np.arange(100), size=n, replace=True)
         numbers_subcategory = self.rng.choice(np.arange(1000), size=n, replace=True)
         lengths = self.rng.integers(low=1, high=4, size=n)
-        codes = [letter + str(number_category).zfill(2) + str(number_subcategory).zfill(3)[:length] for \
+        codes = ["D" + letter + str(number_category).zfill(2) + str(number_subcategory).zfill(3)[:length] for \
             letter, number_category, number_subcategory, length \
                 in zip(letters, numbers_category, numbers_subcategory, lengths)]
         return codes
 
     def generate_randomATC_codes(self, n):
+        """ATC codes will start with M, following SKS."""
         letters = np.random.choice([char for char in string.ascii_uppercase], 
             size=2*n, replace=True)
         numbers = np.random.choice(np.arange(100), size=2*n, replace=True)
-        codes = [letter0 + str(number0).zfill(2) + letter1 + str(number1).zfill(2) for \
+        codes = ["M" + letter0 + str(number0).zfill(2) + letter1 + str(number1).zfill(2) for \
             letter0, number0, letter1, number1 in zip(letters[:n], numbers[:n], letters[n:], numbers[n:])]
         return codes
     
     def generate_lab_tests(self, num_lab_tests):
+        """Look up what lab tests start with, we will use L for now."""
         lab_tests = []
         for _ in range(num_lab_tests):
-            lab_tests.append(('LT'+str(self.rng.integers(self.num_lab_tests))))
+            lab_tests.append(('L'+str(self.rng.integers(self.num_lab_tests))))
         return lab_tests
 
     def simulate_data(self):

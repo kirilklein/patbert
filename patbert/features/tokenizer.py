@@ -9,10 +9,7 @@ from patbert.common.medical import ICD_topic
 class EHRTokenizer():
     def __init__(self, vocabulary=None):
         if isinstance(vocabulary, type(None)):
-            special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>']
-            birthyear_tokens = [f'BIRTHYEAR_{year}' for year in range(1900, 2022)]
-            birthmonth_tokens = [f'BIRTHMONTH_{month}' for month in range(1, 13)]
-            self.special_tokens = special_tokens + birthyear_tokens + birthmonth_tokens
+            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
@@ -59,15 +56,20 @@ class EHRTokenizer():
 
 
 
-class HierarchicalTokenizer(EHRTokenizer):
+class HierarchicalTokenizer():
     def __init__(self, vocabulary=None, max_len=None, len_background=5):
         """Background sentence is added later, so we need to know how many tokens it will have
         usually 5 (CLS, sex, birthyear, birthmonth, SEP)"""
-        super().__init__(vocabulary)
+        if isinstance(vocabulary, type(None)):
+            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
+        else:
+            self.vocabulary = vocabulary
         self.top_lvl_vocab = self.vocabulary.copy()
         self.max_len = max_len
         self.len_background = len_background
         self.token2top_lvl = {}
+
     def __call__(self, seqs):
         return self.batch_encode(seqs)
 
