@@ -2,13 +2,16 @@ import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
 from patbert.common import vis
-plt.style.use('dark_background')
+
 
 class EmbeddingFigure():
     def __init__(self,vector_nums, vector_lens, marker_sizes,
-            modalities = ['Disease', 'Medicine', 'Lab Test', 'Procedure', 'SEP', 'CLS', 'MASK'], seed=0,
+            modalities = ['Disease', 'Medicine',  'Procedure',  'SEP', 'Lab Test', 'CLS', 'MASK'], seed=0,
             figsize=(10,10), dpi=100, fontsize=12, save_path=None, marker_multiplier=8, axins_kwargs=None,
-            zoom_sub_vec_num = 9, text_x_shift=0, text_y_shift=0, add_inset=True):
+            zoom_sub_vec_num = 9, text_x_shift=0, text_y_shift=0, add_inset=True, style='dark_background'):
+        self.style = style
+        plt.rcParams.update(plt.rcParamsDefault)
+        plt.style.use(style)
         self.rng = np.random.default_rng(seed)
         self.vector_nums = vector_nums
         self.vector_lens = vector_lens
@@ -21,7 +24,7 @@ class EmbeddingFigure():
         self.save_path = save_path
         self.marker_sizes = marker_sizes
    
-   
+        self.vecsls = []
         self.vecs = None
         self.sub_vecs = None
         self.sub_sub_vecs = None
@@ -46,7 +49,7 @@ class EmbeddingFigure():
             self.vecs, self.sub_vecs, self.sub_sub_vecs = self.get_vector_hierarchy()
         
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
-        self.scatter_vecs(self.ax)
+        self.scatter_vecs_for(self.ax)
         for i in range(self.vector_nums[0]):
             self.ax.text(self.vecs[i,0]+self.text_x_shift, self.vecs[i,1]+self.text_y_shift, 
                 self.modalities[i], fontsize=self.fontsize, color='k',
@@ -60,7 +63,7 @@ class EmbeddingFigure():
             if self.zoom_sub_vec_num:
                 self.reset_zoom_location()
             self.axins = vis.add_zoom_inset(self.ax,bbox_transform=self.ax.transAxes, **self.axins_kwargs)
-            self.scatter_vecs(self.axins, marker_multiplier=self.marker_multiplier)
+            self.scatter_vecs_for(self.axins, marker_multiplier=self.marker_multiplier)
         # save figure
         return self.fig, self.ax, self.axins
 
@@ -81,6 +84,38 @@ class EmbeddingFigure():
         if self.vector_nums[3] > 0:
             self.sss_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3])
         
+    def scatter_vecs_for(self, ax, marker_multiplier=1):
+        for i, modality in enumerate(self.modalities):
+            ax.scatter(self.vecs[i,0], self.vecs[i,1], s=self.marker_sizes[0]*marker_multiplier, color=self.default_colors[i])
+            if modality in ['SEP', 'CLS','MASK']:
+                continue # skip sub vectors for these modalities
+            id0, id1 = i*self.vector_nums[1], (i+1)*self.vector_nums[1]
+            colors = self.sub_vector_color[:self.vector_nums[1]*self.vector_nums[0]]
+            if modality == 'Lab Test':
+                # multiply vectors by random number
+                multiplier = self.rng.uniform(0.5, .9, size=id1-id0)
+                x_origins = np.repeat(self.vecs[i,0], id1-id0)
+                y_origins = np.repeat(self.vecs[i,1], id1-id0)
+                xy = np.vstack([x_origins, y_origins])
+                U = self.get_vec(id1-id0, self.vector_lens[1])
+                U = U*multiplier[:,None]
+                ax.quiver(*xy, U[:,0], U[:,1],
+                    color=colors[id0:id1], width=.001)
+                continue
+            else:
+                ax.scatter(self.sub_vecs[id0:id1,0], self.sub_vecs[id0:id1,1], s=self.marker_sizes[1]*marker_multiplier, color=colors[id0:id1])
+            
+            id0, id1 = i*self.vector_nums[1]*self.vector_nums[2], (i+1)*self.vector_nums[1]*self.vector_nums[2]
+            colors = self.sub_sub_vector_colors[:self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]]
+            ax.scatter(self.sub_sub_vecs[id0:id1,0], self.sub_sub_vecs[id0:id1,1], s=self.marker_sizes[2]*marker_multiplier, 
+                color=colors[id0:id1])
+            if self.vector_nums[3] > 0:
+                id0, id1 = i*self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3], (i+1)*self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3]
+                colors = self.sss_vector_colors[:self.vector_nums[3]*self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]]
+                ax.scatter(self.sss_vecs[id0:id1,0], self.sss_vecs[id0:id1,1], s=self.marker_sizes[3]*marker_multiplier, 
+                    color=colors[id0:id1])
+
+
     def scatter_vecs(self, ax, marker_multiplier=1):
         ax.scatter(self.vecs[:,0], self.vecs[:,1], s=self.marker_sizes[0]*marker_multiplier, color=self.default_colors[:self.vector_nums[0]])
         ax.scatter(self.sub_vecs[:,0], self.sub_vecs[:,1], s=self.marker_sizes[1]*marker_multiplier, color=self.sub_vector_color[:self.vector_nums[1]*self.vector_nums[0]])
@@ -115,10 +150,13 @@ class EmbeddingFigure():
         vec = self.rng.uniform(-1,1,(n,2))
         vec = len*vec/la.norm(vec, axis=1).reshape(-1,1)
         return vec
-    @staticmethod
-    def get_nice_colors_dark_background():
+    
+    def get_nice_colors_dark_background(self):
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-        add_colors = ['#45bcde', '#52d273', '#e94f64', '#e57254']
+        if self.style == 'dark_background':
+            add_colors = ['#45bcde', '#52d273', '#e94f64', '#e57254']
+        else:
+            add_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
         for color in add_colors:
             colors.insert(0, color)
         return  colors
