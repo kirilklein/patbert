@@ -33,6 +33,7 @@ class CustomPreTrainer(Trainer):
                 batch_size=self.batch_size, shuffle=True)
         valloader = torch.utils.data.DataLoader(self.val_dataset,   # type: ignore
                         batch_size=self.batch_size*2, shuffle=True)
+        #TODO: the dataloader has to produce static embeddings batchwise
         if self.from_checkpoint:
             self.model, optim = self.load_from_checkpoint(self.model, optim)
         self.model.to(device) # and move our model over to the selected device
