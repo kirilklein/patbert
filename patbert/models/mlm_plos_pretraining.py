@@ -39,9 +39,12 @@ def main(
     if not load_model:
         print("Initialize new model")
         model = BertForPreTraining(config)
+        # get embedding dimension
+        model = utils.ModelFC(model, config)
     else:
         print(f"Load saved model from {model_dir}")
         model = torch.load(join(model_dir, 'model.pt'))
+    # Create an instance of the BERT model with an additional FC layer
     config.vocab_size = len(vocab)
     config.pad_token_id = vocab['PAD']
     config.seg_vocab_size = max_num_seg

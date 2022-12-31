@@ -1,5 +1,5 @@
 from transformers import Trainer, BertConfig, BertForPreTraining
-from patbert.features.embeddings import BertEmbeddings
+from patbert.features.embeddings import HierarchicalEmbedding
 from patbert.common import common, pytorch
 import torch
 from tqdm import tqdm
@@ -7,6 +7,7 @@ import os
 from os.path import join, split
 import json
 import numpy as np
+import torch.nn as nn
 
 
 class CustomPreTrainer(Trainer):
@@ -24,7 +25,8 @@ class CustomPreTrainer(Trainer):
         self.checkpoint_freq = checkpoint_freq
         self.from_checkpoint = from_checkpoint
         self.config = config
-        self.embeddings = BertEmbeddings(config=config)
+        self.embeddings = HierarchicalEmbedding()# TODO: continue here, pass in the vocab etc.
+        self.embeddings.weight.requires_grad = False # freeze embeddings
         self.args = args
     def __call__(self):
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -33,7 +35,6 @@ class CustomPreTrainer(Trainer):
                 batch_size=self.batch_size, shuffle=True)
         valloader = torch.utils.data.DataLoader(self.val_dataset,   # type: ignore
                         batch_size=self.batch_size*2, shuffle=True)
-        #TODO: the dataloader has to produce static embeddings batchwise
         if self.from_checkpoint:
             self.model, optim = self.load_from_checkpoint(self.model, optim)
         self.model.to(device) # and move our model over to the selected device
@@ -43,10 +44,12 @@ class CustomPreTrainer(Trainer):
             for i, batch in enumerate(train_loop):
                 # initialize calculated grads
                 optim.zero_grad()
-                # put all tensore batches required for training
+                # put all tensor batches required for training
                 batch = pytorch.batch_to_device(batch, device)
                 # get embeddings
+                #TODO: the dataloader has to produce static embeddings batchwise
                 embedding_output = self.embeddings(batch['codes'], batch['segments'])
+               
                 # process
                 outputs = self.model(inputs_embeds=embedding_output, 
                             attention_mask=batch['attention_mask'], 
@@ -186,6 +189,33 @@ class Encoder(CustomPreTrainer):
         np.savez(join(self.model_dir, 'encodings', 'encodings.npz'), 
                 **{'pat_ids':self.pat_ids, 'pat_vecs':pat_vecs})
         return self.pat_ids, pat_vecs
+
+class FCLayer(nn.Module):
+    """A fully connected layer with GELU activation to train on top of static embeddings"""
+    def __init__(self, input_size, output_size):
+        super(FCLayer, self).__init__()
+        self.fc = nn.Linear(input_size, output_size)
+        self.act = nn.GELU()
+
+    def forward(self, x):
+        # Add the GELU nonlinearity after the linear layer
+        x = self.fc(x)
+        x = self.act(x)
+        return x
+
+class ModelFC(nn.Module):
+    """Insert a fully connected layer with nonlinearity on top of static embeddings before feeding into model"""
+    def __init__(self, model, config):
+        super(ModelFC, self).__init__()
+        self.model = model
+        self.fc1 = FCLayer(config.hidden_size, config.hidden_size)
+
+    def forward(self, x):
+        # Pass the input tensor through the FC layer before passing it through the BERT model
+        x = self.fc1(x)
+        x = self.model(x)
+        return x
+
 
 class Attention(Encoder):
     def __init__(self, dataset, model_dir, pat_ids, 
