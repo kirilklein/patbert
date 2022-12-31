@@ -27,9 +27,6 @@ class EmbeddingFigure():
         self.vecs = [] # list of arrays of vectors
         self.axins_kwargs = axins_kwargs
         self.default_colors = self.get_nice_colors_dark_background()
-        self.sub_sub_vector_colors = None 
-        self.sub_sub_vector_colors =  None 
-        self.sss_vector_colors = None
         self.get_vector_colors()
         self.marker_multiplier = marker_multiplier
         self.axins = None
@@ -71,19 +68,29 @@ class EmbeddingFigure():
         self.axins_kwargs['ylim'] = (sub_vec_y-y_width/2, sub_vec_y+y_width/2)
 
     def get_vector_colors(self):
-        self.sub_vector_color = np.repeat(self.default_colors, self.vector_nums[1])
-        self.sub_sub_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]*self.vector_nums[2])
+        """Get colors for each vector"""
+        sub_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]) # repeat colors for each sub vector
+        sub_vector_colors = sub_vector_colors[:self.vector_nums[1]*self.vector_nums[0]] # trim to number of vectors
+        self.vector_colors = [sub_vector_colors]
+
+        sub_sub_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]*self.vector_nums[2]) # repeat colors for each sub vector
+        sub_sub_vector_colors = sub_sub_vector_colors[:self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]] # trim to number of vectors
+        self.vector_colors.append(sub_sub_vector_colors)
+
         if self.vector_nums[3] > 0:
-            self.sss_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3])
-        
+            sss_vector_colors = np.repeat(self.default_colors, self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3])
+            sss_vector_colors = self.sss_vector_colors[:self.vector_nums[3]*self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]] # trim to number of vectors
+            self.vector_colors.append(sss_vector_colors)
+
     def scatter_vecs_for(self, ax, marker_multiplier=1):
         """Produce scatter plot"""
         for i, modality in enumerate(self.modalities):
-            ax.scatter(self.vecs[0][i,0], self.vecs[0][i,1], s=self.marker_sizes[0]*marker_multiplier, color=self.default_colors[i])
+            ax.scatter(self.vecs[0][i,0], self.vecs[0][i,1], s=self.marker_sizes[0]*marker_multiplier, 
+                color=self.default_colors[i])
             if modality in ['SEP', 'CLS','MASK']:
                 continue # skip sub vectors for these modalities
             id0, id1 = i*self.vector_nums[1], (i+1)*self.vector_nums[1]
-            colors = self.sub_vector_color[:self.vector_nums[1]*self.vector_nums[0]]
+            colors = self.vector_colors[0]
             if modality == 'Lab Test':
                 # multiply vectors by random number
                 multiplier = self.rng.uniform(0.5, .9, size=id1-id0)
@@ -96,27 +103,18 @@ class EmbeddingFigure():
                     color=colors[id0:id1], width=.001)
                 continue
             else:
-                ax.scatter(self.vecs[1][id0:id1,0], self.vecs[1][id0:id1,1], s=self.marker_sizes[1]*marker_multiplier, color=colors[id0:id1])
+                ax.scatter(self.vecs[1][id0:id1,0], self.vecs[1][id0:id1,1], 
+                        s=self.marker_sizes[1]*marker_multiplier, color=colors[id0:id1])
             
             id0, id1 = i*self.vector_nums[1]*self.vector_nums[2], (i+1)*self.vector_nums[1]*self.vector_nums[2]
-            colors = self.sub_sub_vector_colors[:self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]]
+            colors = self.vector_colors[1]
             ax.scatter(self.vecs[2][id0:id1,0], self.vecs[2][id0:id1,1], s=self.marker_sizes[2]*marker_multiplier, 
                 color=colors[id0:id1])
             if self.vector_nums[3] > 0:
                 id0, id1 = i*self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3], (i+1)*self.vector_nums[1]*self.vector_nums[2]*self.vector_nums[3]
-                colors = self.sss_vector_colors[:self.vector_nums[3]*self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]]
+                colors = self.vector_colors[2]
                 ax.scatter(self.vecs[3][id0:id1,0], self.vecs[3][id0:id1,1], s=self.marker_sizes[3]*marker_multiplier, 
                     color=colors[id0:id1])
-
-
-    def scatter_vecs(self, ax, marker_multiplier=1):
-        ax.scatter(self.vecs[0][:,0], self.vecs[0][:,1], s=self.marker_sizes[0]*marker_multiplier, color=self.default_colors[:self.vector_nums[0]])
-        ax.scatter(self.vecs[1][:,0], self.vecs[1][:,1], s=self.marker_sizes[1]*marker_multiplier, color=self.sub_vector_color[:self.vector_nums[1]*self.vector_nums[0]])
-        ax.scatter(self.vecs[2][:,0], self.vecs[2][:,1], s=self.marker_sizes[2]*marker_multiplier, 
-            color=self.sub_sub_vector_colors[:self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]])
-        if self.vector_nums[3] > 0:
-            ax.scatter(self.vecs[3][:,0], self.vecs[3][:,1], s=self.marker_sizes[3]*marker_multiplier, 
-                color=self.sss_vector_colors[:self.vector_nums[3]*self.vector_nums[2]*self.vector_nums[1]*self.vector_nums[0]])
 
     def get_vector_hierarchy(self):
         """Create cluster of vectors for each modality, then create sub vectors for each cluster, then sub-sub vectors, etc.
