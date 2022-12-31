@@ -8,7 +8,8 @@ class EmbeddingFigure():
     def __init__(self,vector_nums, vector_lens, marker_sizes,
             modalities = ['Disease', 'Medicine',  'Procedure',  'SEP', 'Lab Test', 'CLS', 'MASK'], seed=0,
             figsize=(10,10), dpi=100, fontsize=12, save_path=None, marker_multiplier=8, axins_kwargs=None,
-            zoom_sub_vec_num = 9, text_x_shift=0, text_y_shift=0, add_inset=True, style='dark_background'):
+            zoom_sub_vec_num = 9, text_x_shift=0, text_y_shift=0, vec_width=0.001,
+            vec_width_multiplier=1, add_inset=True, style='dark_background'):
         self.style = style
         plt.rcParams.update(plt.rcParamsDefault)
         plt.style.use(style)
@@ -32,6 +33,8 @@ class EmbeddingFigure():
         self.axins = None
         self.zoom_sub_vec_num = zoom_sub_vec_num
         self.add_inset = add_inset
+        self.vec_width = vec_width
+        self.vec_width_multiplier = vec_width_multiplier
 
     def __call__(self):
         assert len(self.modalities) == self.vec_nums[0], 'Number of modalities must match number of vectors'   
@@ -52,7 +55,8 @@ class EmbeddingFigure():
             if self.zoom_sub_vec_num:
                 self.reset_zoom_location()
             self.axins = vis.add_zoom_inset(self.ax, bbox_transform=self.ax.transAxes, **self.axins_kwargs)
-            self.scatter_vecs_for(self.axins, marker_multiplier=self.marker_multiplier)
+            self.scatter_vecs_for(self.axins, marker_multiplier=self.marker_multiplier, 
+                    vec_width_multiplier=self.vec_width_multiplier)
         # save figure
         return self.fig, self.ax, self.axins
 
@@ -82,7 +86,7 @@ class EmbeddingFigure():
             sss_vec_colors = sss_vec_colors[:self.vec_nums[3]*self.vec_nums[2]*self.vec_nums[1]*self.vec_nums[0]] # trim to number of vectors
             self.vec_colors.append(sss_vec_colors)
 
-    def scatter_vecs_for(self, ax, marker_multiplier=1):
+    def scatter_vecs_for(self, ax, marker_multiplier=1, vec_width_multiplier=1):
         """Produce scatter plot"""
         for i, modality in enumerate(self.modalities):
             ax.scatter(self.vecs[0][i,0], self.vecs[0][i,1], s=self.marker_sizes[0]*marker_multiplier, 
@@ -100,7 +104,7 @@ class EmbeddingFigure():
                 U = self.get_vec(id1-id0, self.vector_lens[1])
                 U = U*multiplier[:,None]
                 ax.quiver(*xy, U[:,0], U[:,1],
-                    color=colors[id0:id1], width=.001)
+                    color=colors[id0:id1], width=self.vec_width*vec_width_multiplier)
                 continue
             else:
                 ax.scatter(self.vecs[1][id0:id1,0], self.vecs[1][id0:id1,1], 
