@@ -55,7 +55,7 @@ class HierarchicalEmbedding(nn.Embedding):
     def initialize_static_embeddings(self):
         self.top_lvl_embedding = Embedding(len(self.top_lvl_vocab), self.embedding_dim)
 
-        self.birthdate_embedding = Embedding(self.num_birthyears, self.embedding_dim, _weight=torch.randn()) # number of birthmonths is smaller and so we can reuse the same embedding
+        self.birthdate_embedding = Embedding(self.num_birthyears, self.embedding_dim) # number of birthmonths is smaller and so we can reuse the same embedding
         self.lab_test_embedding = Embedding(self.num_lab_tests+1, self.embedding_dim) # one for rare lab tests
 
         self.icd_atc_topic_embedding = Embedding(22, self.embedding_dim) # we add one topic for rare icd, atc contains 14 topics
@@ -64,7 +64,7 @@ class HierarchicalEmbedding(nn.Embedding):
         self.icd_atc_subcategory_embedding = Embedding(len(string.ascii_uppercase)+10, self.embedding_dim) # all subcategories can be described by adding additional alphanumeric symbols
        
         self.top_lvl_embedding.weight.requires_grad = False
-        self.birthdate_embedding .weight.requires_grad = False
+        self.birthdate_embedding.weight.requires_grad = False
         self.lab_test_embedding.weight.requires_grad = False
         self.icd_atc_category_embedding.weight.requires_grad = False
         self.icd_atc_topic_embedding.weight.requires_grad = False

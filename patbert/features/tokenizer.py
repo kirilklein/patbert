@@ -9,7 +9,8 @@ from patbert.common.medical import ICD_topic
 class EHRTokenizer():
     def __init__(self, vocabulary=None):
         if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                    '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
@@ -59,7 +60,10 @@ class EHRTokenizer():
 class HierarchicalTokenizer():
     def __init__(self, vocabulary=None, max_len=None, len_background=5):
         """Background sentence is added later, so we need to know how many tokens it will have
-        usually 5 (CLS, sex, birthyear, birthmonth, SEP)"""
+        usually 5 (CLS, sex, birthyear, birthmonth, SEP)
+        The data (seqs) should be a list of dictionaries. Every dictionary should have the following 
+            {'pat_id':pat_id, 'los':los, 'codes':codes, 
+                'visits':visits, 'abs_pos':abs_pos, 'values':values}"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
