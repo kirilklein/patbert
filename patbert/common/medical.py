@@ -1,5 +1,7 @@
-import numpy as np
 import string
+
+import numpy as np
+
 
 def ICD_topic(code):
     """0 is reserved for mapping onto zero vector"""
@@ -57,6 +59,43 @@ def ATC_topic(code):
         return atc_topic_dic[code[0]]
     else:
         return len(atc_topic_ls)+2 #we start at 1, so we need to add 2
+
+class SKS_codes():
+    """get a list of SKS codes of a certain type"""
+    def __init__(self):
+        codes = []
+        with open("..\\..\\data\\medical\\SKScomplete.txt") as f:
+            for line in f:
+                codes.append(line.split(' ')[0])
+        self.codes = set(codes)
+
+    def get_codes(self, signature):
+        codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
+        return codes
+
+    def get_icd(self):
+        return self.get_codes('icd')
+    def get_atc(self):
+        return self.get_codes('atc')
+    def get_adm(self):
+        return self.get_codes('adm')
+    def get_operations(self):
+        return self.get_codes('opr')
+    def get_procedures(self):
+        return self.get_codes('pro')
+    def get_special_codes(self):
+        return self.get_codes('til')
+    def get_ext_injuries(self):
+        return self.get_codes('uly')
+    def get_studies(self):
+        """MR scans, CT scans, etc."""
+        return self.get_codes('und')
+
+
+    
+    
+    
+
 
 def construct_dict(level):
     vocab = {}

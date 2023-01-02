@@ -1,6 +1,5 @@
 import torch
 import typer
-import string
 import pickle as pkl
 from os.path import join, split
 from patbert.common.medical import ICD_topic
@@ -156,25 +155,23 @@ class HierarchicalTokenizer():
             self.vocabulary[code] = len(self.vocabulary)
         return self.vocabulary[code]
         
-    def encode_top_lvl(self, code):
+    def encode_type(self, code):
         """Encode top level (first level in hierarchy) token for a given code and modality"""
         if code[0] in "MDL": # M: ATC, D: ICD, L: LAB
-            group = code[0]
+            type = code[0]
         elif code.startswith('BIRTHYEAR'):
-            group = 'BIRTHYEAR'
+            type = 'BIRTHYEAR'
         elif code.startswith('BIRTHMONTH'):
-            group = 'BIRTHMONTH'
+            type = 'BIRTHMONTH'
         else:
             if code not in self.special_tokens:
-                Warning(f"Modality of code {code} not recognized, set to unknown (<UNK>)")
-                group = '<UNK>'
+                Warning(f"Type of code {code} not recognized, set to unknown (<UNK>)")
+                type = '<UNK>'
             else:
-                group = code
-        if group not in self.top_lvl_vocab:
-            self.top_lvl_vocab[group] = len(self.top_lvl_vocab)
-        if code not in self.token2top_lvl:
-            self.token2top_lvl[code] = group
-        return self.top_lvl_vocab[group]
+                type = code
+        if type not in self.vocabs[0]:
+            self.vocabs[0][type] = len(self.vocabs[0])
+        return self.vocabs
 
     # add special tokens
     # check whether length is within limits
@@ -186,6 +183,20 @@ class HierarchicalTokenizer():
         torch.save(self.token2top_lvl, dest.replace('.pt', '_token2top_lvl.pt'))
         torch.save(self.special_tokens, dest.replace('.pt', '_special_tokens.pt'))
 
+class HierarchicalTokenizerStatic(HierarchicalTokenizer):
+    # init
+    def __init__(self, vocab=None, max_len=None):
+        #super init
+        super().__init__(vocab, max_len=max_len)
+        self.vocabs = []
+        self.vocabs.append(self.top_lvl_vocab)
+    def construct_vocabs(self):
+        self.vocab[1]  = self.construct_vocab(lvl=1)
+    def construct_vocab(self, lvl):
+        vocab = {}
+        for code in self.codes:
+            if code[0] in "MDL":
+                pass
 
 
 def main(
