@@ -5,44 +5,34 @@ import torch
 
 
 class MLM_PLOS_Dataset(Dataset):
-    def __init__(self, data, vocab, mask_prob=15):
+    def __init__(self, data, vocab, mask_prob=.15, pad_len=None):
         self.vocab = vocab
-        self.codes_all = [d['codes'] for d in data]
-        self.segments_all = [d['visits'] for d in data]
-        self.los_all = [d['los'] for d in data]
-        self.idx_all = [d['idx'] for d in data]
-        self.abs_pos_all = [d['abs_pos'] for d in data]
-        self.age_all = [d['age'] for d in data]
-        self.values_all = [d['values'] for d in data]
+        lens = np.array([len(d['codes']) for d in data])
+        max_len = int(np.max(lens)) + 5 # background sentence
+        if pad_len is None:
+            self.pad_len = max_len
+        assert self.pad_len >= max_len, "pad_len must be larger than max_len"
+        self.attributes = ['idx', 'codes', 'visits', 'los', 'abs_pos', 'age', 'values'] 
+        self.data_all = [[d[attribute] for d in data] for attribute in self.attributes]
         self.mask_prob = mask_prob
+    
     def __getitem__(self, index):
         """
-        return: code, position, visit, mask, label
+        return: dictionary with codes for patient with index 
         """
-        idxs = self.idx_all[index]
-        visits = self.visits_all[index]
-        los = self.los_all[index]
-        abs_pos = self.abs_pos_all[index]
-        plos = (np.array(los)>7).any() #TODO: change to list for every visit
-        # TODO: add age and values
-        
+        # 4th entry is now prolonged length of stay
+        self.data_all[4][index] = (np.array(self.data_all[4][index])>7).astype(int)
         # mask 0:len(code) to 1, padding to be 0
-        mask = np.ones(self.max_len)
-        mask[len(idxs):] = 0
+        mask = np.ones(self.pad_len)
+        mask[len(self.data_all[0][index]):] = 0
         # mask 
         masked_idxs, labels = random_mask(idxs, self.vocab, mask_prob=self.mask_prob) 
         # pad code sequence, segments and label
-        pad_idxs = seq_padding(masked_idxs, self.max_len, self.vocab)
-        pad_visits = seq_padding(visits, self.max_len, self.vocab)
-        pad_labels = seq_padding(labels, self.max_len, self.vocab)
-        pad_abs_pos = seq_padding(abs_pos, self.max_len, self.vocab)
-        output_dic = {
-            'idxs':torch.LongTensor(pad_idxs),
-            'visits':torch.LongTensor(pad_visits),
-            'attention_mask':torch.LongTensor(mask),
-            'labels':torch.LongTensor(pad_labels),
-            'plos':torch.LongTensor(plos),
-            'abs_pos':torch.LongTensor(pad_abs_pos),}
+        for i in range(len(self.data_all)):
+            self.data_all[i] = seq_padding(self.data_all[i], self.max_len, self.vocab)
+
+        output_dic = {modality:torch.LongTensor(data) for \
+            modality, data in zip(self.modalities, self.data_all)}
         return output_dic
 
     def __len__(self):

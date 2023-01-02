@@ -49,7 +49,7 @@ class CustomPreTrainer(Trainer):
                 # get embeddings
                 #TODO: the dataloader has to produce static embeddings batchwise
                 embedding_output = self.embeddings(batch['codes'], batch['segments'])
-               
+                               
                 # process
                 outputs = self.model(inputs_embeds=embedding_output, 
                             attention_mask=batch['attention_mask'], 
@@ -192,9 +192,13 @@ class Encoder(CustomPreTrainer):
 
 class FCLayer(nn.Module):
     """A fully connected layer with GELU activation to train on top of static embeddings"""
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, weight=None, bias=None):
         super(FCLayer, self).__init__()
         self.fc = nn.Linear(input_size, output_size)
+        if not(isinstance(weight, type(None))):
+            self.fc.weight = torch.nn.Parameter(weight)
+        if not(isinstance(bias, type(None))):
+            self.fc.bias = torch.nn.Parameter(bias)
         self.act = nn.GELU()
 
     def forward(self, x):

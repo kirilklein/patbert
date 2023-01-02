@@ -1,27 +1,69 @@
-import random
 import numpy as np
 from numpy.random import default_rng
-rng = default_rng()
 
-#TODO dont mask cls and sep tokens
-def random_mask(codes, vocab, mask_prob=0.15):
+
+def random_mask(idxs, vocab, mask_prob=0.15,
+    special_tokens=['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', ], seed=0):
     """mask code with 15% probability, 80% of the time replace with [MASK], 
         10% of the time replace with random token, 10% of the time keep original"""
-    masked_codes = codes
-    labels = len(codes) * [-100] # -100 is ignored by loss function
-    prob = rng.uniform()
-    for i, _ in enumerate(masked_codes):
+    rng = default_rng(seed)
+    masked_idxs = idxs.copy()
+    special_idxs = [vocab[token] for token in special_tokens]
+    labels = len(idxs) * [-100] # -100 is ignored by loss function
+    
+    for i, idx in enumerate(idxs):
+        if idx in special_idxs:
+            continue
+        prob = rng.uniform()
         if prob<mask_prob:
-            prob = rng.uniform()   
+            prob = rng.uniform()  
+            # 80% of the time replace with [MASK] 
             if prob < 0.8:
-                masked_codes[i] = vocab['MASK']
-                labels[i] = vocab['UNK']
-            # 10% randomly change token to random token
+                masked_idxs[i] = vocab['<MASK>']
+            # 10% change token to random token
             elif prob < 0.9:
-                masked_codes[i] = rng.choice(list(vocab.values())[9:]) # first 9 tokens are special!
-    return masked_codes, labels
+                masked_idxs[i] = rng.choice(list(vocab.values())[len(special_idxs):]) # first tokens are special!
+            # 10% keep original
+            labels[i] = idx
+    return masked_idxs, labels
+
+def combine_masks(mask1, mask2):
+    """Combine two masks into one mask. 1 where either mask is 1, 0 otherwise"""
+    # Initialize the output mask to all zeros
+    mask3 = np.zeros_like(mask1)
+    # Set the mask3 values to 1 where mask2 is 1 and 0 where mask1 is 1
+    mask3[mask2] = 1
+    mask3[mask1] = 0
+    return mask3
+
+def random_mask_arr(idxs, vocab, mask_prob=0.15,
+    special_tokens=['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', ], seed=0):
+    """is slower than random_mask with for loop even for sequences up to 1000 
+        tokens, then only slightly faster"""
+    rng = default_rng(seed)
+    idxs = np.array(idxs)
+    special_idxs = np.array([vocab[token] for token in special_tokens])
+    # Generate a mask indicating which tokens are special
+    special_mask = np.isin(idxs, special_idxs)
+    # Generate a random mask indicating which tokens should be masked
+    modify_mask = rng.uniform(size=len(idxs)) < mask_prob
+    # don't mask special tokens
+    modify_mask = combine_masks(special_mask, modify_mask)
+    # Mask the tokens that should be masked
+    masked_idxs = idxs.copy()
+    # Generate the labels for each token, -100 is ignored by loss function
+    labels = np.ones_like(idxs)*(-100)
+    labels[modify_mask] = idxs[modify_mask]
+    # Randomly modify the masked tokens in the input
+    prob = rng.uniform(size=len(idxs))
+    mask_mask = modify_mask & (prob < 0.8)
+    masked_idxs[mask_mask] = vocab['<MASK>']
+    replace_mask = mask_mask & (prob >= 0.8) & (prob < 0.9)
+    masked_idxs[replace_mask] = rng.choice(list(vocab.values()), 
+        size=replace_mask.sum())
+    return masked_idxs, labels
 
 def seq_padding(seq, max_len, vocab):
-    return seq + (max_len-len(seq)) * [vocab['PAD']]
+    return seq + (max_len-len(seq)) * [vocab['<PAD>']]
 
 #TODO torch.utils.data.random_split

@@ -99,7 +99,7 @@ class HierarchicalEmbedding(nn.Embedding):
             return emb
         else:
             return self.top_lvl_embedding(self.top_lvl_vocab['<UNK>'])
-    # TODO: add embedding for icd and atc
+    
 
     def get_lab_test_vocab(self):
         ls = [x for x in self.vocab.keys() if x.startswith('L')]
