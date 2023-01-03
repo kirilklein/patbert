@@ -54,13 +54,13 @@ def ICD_topic(code):
 # TODO: use subtopics from SKS to further divide the codes
 def ATC_topic(code):
     atc_topic_ls = ['A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V']
-    atc_topic_dic = {topic:i+1 for i, topic in enumerate(atc_topic_ls)}
+    atc_topic_dic = {topic:(i+1) for i, topic in enumerate(atc_topic_ls)}
     if code[0] in atc_topic_dic:
         return atc_topic_dic[code[0]]
     else:
         return len(atc_topic_ls)+2 #we start at 1, so we need to add 2
 
-def SKS_codes_to_list():
+def sks_codes_to_list():
     codes = []
     with open("..\\..\\data\\medical\\SKScomplete.txt") as f:
         for line in f:
@@ -70,9 +70,10 @@ def SKS_codes_to_list():
         pkl.dump(codes, f)
 
 class SKS_codes():
-    """get a list of SKS codes of a certain type"""
+    """get a list of SKS codes of a certain type
+    We will construct a dictionary for Lab Tests on the fly"""
     def __init__(self):
-        with open("..\\..\\data\\medical\\SKScodes.pkl") as f:
+        with open("..\\..\\data\\medical\\SKScodes.pkl", "rb") as f:
             self.codes = pkl.load(f)
 
     def get_codes(self, signature):
@@ -80,7 +81,7 @@ class SKS_codes():
         return codes
 
     def get_icd(self):
-        return self.get_codes('icd')
+        return self.get_codes('dia')
     def get_atc(self):
         return self.get_codes('atc')
     def get_adm(self):
@@ -96,14 +97,37 @@ class SKS_codes():
     def get_studies(self):
         """MR scans, CT scans, etc."""
         return self.get_codes('und')
+    def construct_vocab_dic(self, level):
+        """construct a dictionary of codes and their topics"""
+        vocab = {}
+        if level==1:
+            icd_codes = self.get_icd()
+            for code in icd_codes:
+                vocab[code] = ICD_topic(code[1:])
+            atc_codes = self.get_atc()
+            for code in atc_codes:
+                if len(code) > 1:
+                    vocab[code] = ATC_topic(code[1:])
+            # TODO: add other codes
+            return vocab
+        elif level==2:
+            icd_codes = self.get_icd()
+            vocab = self.enumerate_codes(icd_codes, vocab)
+            atc_codes = self.get_atc()
+            vocab = self.enumerate_codes(atc_codes, vocab)
+        else:
+            print("Level not implemented")
+        return vocab
+                    
+    def enumerate_codes(self, codes, vocab):
+        for i, code in enumerate(codes):
+                vocab[code] = i+1
 
 
-    
-    
-    
 
 
 def construct_dict(level):
+    """construct a dictionary of codes and their topics"""
     vocab = {}
     if level==1:
         for a in string.ascii_uppercase:
@@ -136,6 +160,8 @@ def construct_dict(level):
                     vocab[code] = i+1
         
     return vocab
+
+
 
 # Probably not needd
 def ICD_topic_arr(codes):
