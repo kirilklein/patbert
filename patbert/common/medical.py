@@ -1,5 +1,5 @@
 import string
-
+import pickle as pkl
 import numpy as np
 
 
@@ -60,14 +60,20 @@ def ATC_topic(code):
     else:
         return len(atc_topic_ls)+2 #we start at 1, so we need to add 2
 
+def SKS_codes_to_list():
+    codes = []
+    with open("..\\..\\data\\medical\\SKScomplete.txt") as f:
+        for line in f:
+            codes.append(line.split(' ')[0])
+    codes = set(codes)
+    with open("..\\..\\data\\medical\\SKScodes.pkl", "wb") as f:
+        pkl.dump(codes, f)
+
 class SKS_codes():
     """get a list of SKS codes of a certain type"""
     def __init__(self):
-        codes = []
-        with open("..\\..\\data\\medical\\SKScomplete.txt") as f:
-            for line in f:
-                codes.append(line.split(' ')[0])
-        self.codes = set(codes)
+        with open("..\\..\\data\\medical\\SKScodes.pkl") as f:
+            self.codes = pkl.load(f)
 
     def get_codes(self, signature):
         codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
