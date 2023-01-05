@@ -2,7 +2,6 @@ import string
 import pickle as pkl
 
 
-
 """  ("UA","UA"), # Abdominal Circumference [cm]
         ("UB","UB"), # Orificiums opening into [cm]
         ("UH","UH"), # Head circumference [cm]
@@ -12,58 +11,7 @@ import pickle as pkl
         ("VA","VA"), # Undisclosed
         ("VRA","VRA"), # regarding weight, height 
         ("VRB","VRB"), # tobacco and alcohol
-        ("VRK","VRK"), # interoperative bleeding"""
-
-"""
-def ICD_topic(code):
-    
-    c = code[:3]
-    if "A00" <= c <= "B99": # Certain Infectious and Parasitic Diseases
-        return 1
-    elif c >= "C00" and c <= "D48": 
-        return 2
-    elif c >= "D50" and c <= "D89": # Blood, Blood-Forming Organs, and Certain Disorders Involving the Immune Mechanism
-        return 3
-    elif c >= "E00" and c <= "E90": # Endocrine, Nutritional, and Metabolic Diseases, and Immunity Disorders
-        return 4
-    elif c >= "F00" and c <= "F99": # Mental, Behavioral, and Neurodevelopmental Disorders 
-        return 5
-    elif c >= "G00" and c <= "G99": # Diseases of the Nervous System
-        return 6
-    elif c >= "H00" and c <= "H59": # Diseases of the Eye and Adnexa
-        return 7
-    elif c >= "H60" and c <= "H95": # Diseases of the Ear and Mastoid Process
-        return 8
-    elif c >= "I00" and c <= "I99": # Diseases of the Circulatory System
-        return 9
-    elif c >= "J00" and c <= "J99": # Diseases of the Respiratory System
-        return 10
-    elif c >= "K00" and c <= "K93": # Diseases of the Digestive System
-        return 11
-    elif c >= "L00" and c <= "L99": # Diseases of the Skin and Subcutaneous Tissue
-        return 12
-    elif c >= "M00" and c <= "M99": # Diseases of the Musculoskeletal System and Connective Tissue
-        return 13
-    elif c >= "N00" and c <= "N99": # Diseases of the Genitourinary System
-        return 14
-    elif c >= "O00" and c <= "O99": # Pregnancy, Childbirth, and the Puerperium
-        return 15
-    elif c >= "P00" and c <= "P96": # Certain Conditions Originating in the Perinatal Period
-        return 16
-    elif c >= "Q00" and c <= "Q99": # Congenital Malformations, Deformations, and Chromosomal Abnormalities
-        return 17
-    elif c >= "R00" and c <= "R99": # Symptoms, Signs, and Ill-Defined Conditions
-        return 18
-    elif c >= "S00" and c <= "T98": # Injury, Poisoning, and Certain Other Consequences of External Causes
-        return 19
-    elif c >= "X60" and c <= "Y09": # External Causes of Injury
-        return 20
-    elif c >= "Z00" and c <= "Z99": #
-        return 21
-    elif c[0] == 'U': #special codes (childbirth and pregnancy)
-        return 22
-    else: 
-        return 23
+        ("VRK","VRK"), # interoperative bleeding
 """
 
 def sks_codes_to_list():
@@ -124,83 +72,152 @@ class SKS_CODES():
         assert level<=5, "Level must be between 1 and 5"
         icd_codes = self.get_icd()
         atc_codes = self.get_atc()
+        codes = icd_codes + atc_codes
+        if level==0:
+            special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>',
+                        'adm','dia', 'atc','opr', 'pro', 'til', 'uly', 'und', 'lab']
+            vocab = {token:idx for idx, token in enumerate(special_tokens)}
         if level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
             C00-D48 (Diseases of the blood and blood-forming organs), etc."""
-            for code in icd_codes:
-                vocab[code] = self.ICD_topic(code)
-            for code in atc_codes:
-                vocab[code] = self.ATC_topic(code)
-            # TODO: add other codes
+            for code in codes:
+                vocab[code] = self.topic(code)
         else:
             # Looks good so far
             vocab = self.enumerate_codes_lvl(icd_codes, vocab, level)
             vocab = self.enumerate_codes_lvl(atc_codes, vocab, level)
         return vocab
     
-    
-    
-    def get_temp_vocab_atc_cat(self, codes):
-        pass
 
     @staticmethod
     def insert_voc(code, voc):
         """Insert a code into the vocabulary"""
         if code not in voc:
-            voc[code] = len(voc)+1
+            voc[code] = len(voc)
         return voc
-    
+    @staticmethod
+    def same_type(codes):
+        # Get the first character of the first string
+        first_char = codes[0][0]
+        # Iterate over the strings and compare the first character of each string to the first character of the first string
+        for code in codes:
+            if code[0] != first_char:
+                return False
+        return True
 
     def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
-        if lvl==2:
-            if codes[0].startswith('D'):
+        assert self.same_type(codes), "Codes must be of the same type"
+        if codes[0].startswith('D'): # TODO: this might be improved, should not accept mixed codes
                 temp_vocab = self.get_temp_vocab_icd(codes, lvl)
-            elif codes[0].startswith('M'):
-                pass
-            else:
-                print(f"Code type starting with {code[0]} not implemented yet")
+        elif codes[0].startswith('M'):
+            pass
+        else:
+            print(f"Code type starting with {code[0]} not implemented yet")
 
-            for code in codes:
-                if code.startswith('D'):    
-                    if code.startswith('DU') or code.startswith('DV'):
-                        # special codes
-                        #TODO: have a closer look at pregnancy weeks!
-                        if code[2].isdigit():
-                            # special code followed by two digits  
+        for code in codes:
+            if code.startswith('D'):    
+                if code.startswith(('DU', 'DV')):
+                    # special codes
+                    #TODO: have a closer look at pregnancy weeks!
+                    if code[2].isdigit():
+                        # special code followed by two digits 
+                        if lvl==2: 
                             vocab[code] =  temp_vocab[code[:2]]
-                        elif code[2]=='R':
-                            vocab[code] = temp_vocab[code[:4]]
                         else:
-                            vocab[code] =  temp_vocab[code[:3]]
+                            vocab[code] = 0 # we fill all level below with zero
+
+                    elif code.startswith(('DUA', 'DUB', 'DUH')):
+                        if lvl==2:
+                            vocab[code] = temp_vocab[code[:3]]
+                        else: #DVRA, DVRB, DVRK
+                            vocab[code] = 0 # we fill all level below with zeros
+                    elif code=='DVRK01':
+                        if lvl==2:
+                            vocab[code] = temp_vocab[code]
+                        else:
+                            vocab[code] = 0
+                    elif code.startswith(('DUP', 'DUT', 'DVA')):
+                        if lvl==2:
+                            vocab[code] = temp_vocab[code[:3]]
+                        elif lvl==3:
+                            if code[3].isdigit():
+                                vocab[code] = temp_vocab[str(int(code[3:]))] # digits
+                            else:
+                                vocab[code] = temp_vocab[code[3:]]
+                        else:
+                            vocab[code] = 0
+                    elif code.startswith(('DVRA', 'DVRB')):
+                        if lvl==2:
+                            vocab[code] = temp_vocab[code[:4]]
+                        elif lvl==3:
+                            if  self.all_digits(code[4:]):
+                                vocab[code] = temp_vocab[str(int(code[4:]))] # digits
+                            else:
+                                vocab[code] = temp_vocab[code[4:]] #TODO: check this
+                        else:
+                            vocab[code] = 0
                     else:
                         vocab[code] =  temp_vocab[code[:4]]
-        elif lvl==3:
-            pass
-        return vocab
+                else:
+                    if lvl==2:
+                        vocab[code] =  temp_vocab[code[:4]]
+                    else:
+                        if (lvl+2)<=len(code): 
+                            vocab[code] = temp_vocab[code[lvl+1]]
+                        else:
+                            vocab[code] = 0
 
-    
+        return vocab
+    @staticmethod
+    def all_digits(codes):
+        """Check if a string only contains digits"""
+        return all([c.isdigit() for c in codes])
+         
     def get_temp_vocab_icd(self, codes, lvl):
         """Construct a temporary vocabulary for categories for icd codes"""
-        temp_vocab = {}                
+        temp_vocab = {'<ZERO>':0,'<UNK>':1}                
         special_codes_u = ['DUA', 'DUB', 'DUH', 'DUP', 'DUT'] # different birth-related codes
-        special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK'] # placenta weight, height weight ...
+        special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK01'] # placenta weight, height weight ...
         special_codes = special_codes_u + special_codes_v
-        if lvl==2:
-            for code in codes:
-                if code.startswith('DU') or code.startswith('DV'):
-                    special_code_bool = [code.startswith(s) for s in special_codes]
-                    if any(special_code_bool):
-                        key = special_codes[special_code_bool.index(True)]
-                        temp_vocab = self.insert_voc(key, temp_vocab)
-                        continue 
-                    if code[3].isdigit(): # duration of pregancy DUwwDdd
+        for code in codes:
+            if code.startswith('DU') or code.startswith('DV'):
+                # special codes
+                special_code_bool = [code.startswith(s) for s in special_codes]
+                if any(special_code_bool):
+                    key = special_codes[special_code_bool.index(True)]
+                    if lvl==2:
+                        temp_vocab = self.insert_voc(key, temp_vocab) 
+                    # elif lvl==3:
+                        # zero_codes = [key.startswith(s) for s in ['DUA', 'DUB', 'DUH', 'DVRK01']]
+                        # if any(zero_codes):
+                            # temp_vocab[code] = 0
+                        # elif code.startswith():
+                            # temp_vocab = self.insert_voc(code[:4], temp_vocab)
+
+                elif code[3].isdigit(): # duration of pregancy DUwwDdd or size of placenta 
+                    if lvl==2:
                         temp_vocab = self.insert_voc(code[:2], temp_vocab)
-                        continue 
-                else: 
+                    else:
+                        pass
+                else:
+                    if lvl==2:
+                        temp_vocab = self.insert_voc(code[:3], temp_vocab)
+            else: 
+                if lvl==2:
                     temp_vocab = self.insert_voc(code[:4], temp_vocab)
-        elif lvl==3:
-            pass
+                    
+        if lvl>=3:
+            for i in range(10):
+                temp_vocab[str(i)] = len(temp_vocab)
+            for i in range(10):
+                for j in range(10):
+                    temp_vocab[str(i)+str(j)] = len(temp_vocab)
+            for a in string.ascii_uppercase:
+                temp_vocab[a] = len(temp_vocab)
+            temp_vocab['XX'] = len(temp_vocab)
+            temp_vocab['02A'] = len(temp_vocab)
         return temp_vocab
 
     def enumerate_codes_subcategory(self, codes, vocab):
@@ -215,18 +232,25 @@ class SKS_CODES():
     @staticmethod
     def two_digit_vocab():
         """Construct a vocabulary for two digit codes"""
-        vocab = {}
+        vocab = {'<ZERO>':0, '<UNK>':1}
         for i in range(10):
             for j in range(10):
-                vocab[str(i)+str(j)] = i*10+j+1
+                vocab[str(i)+str(j)] = i*10+j+2
         return vocab
     @staticmethod
     def alphanumeric_vocab():
+        vocab = {'<ZERO>':0, '<UNK>':1}
         alphanumeric = string.ascii_uppercase + string.digits
         vocab = {a:i+1 for i, a in enumerate(alphanumeric)} 
         # first value is reserved for 0
         return vocab
-
+    def topic(self, code):
+        if code.startswith('M'):
+            return self.ATC_topic(code)
+        elif code.startswith('D'):
+            return self.ICD_topic(code)
+        else:
+            print(f"Code type starting with {code[0]} not implemented yet")
     @staticmethod
     def ATC_topic(code):
         assert code[0] == 'M', f"ATC code must start with 'M, code: {code}'"
@@ -274,40 +298,5 @@ class SKS_CODES():
 
 
 
-
-def construct_dict(level):
-    """construct a dictionary of codes and their topics"""
-    vocab = {}
-    if level==1:
-        for a in string.ascii_uppercase:
-            for i in range(10):
-                for j in range(10):
-                    code = a+str(i)+str(j)
-                    vocab['D'+code] = ICD_topic(a+str(i)+str(j))
-        for a in 'ABCDJGHLMNPRSV':
-            for i in range(10):
-                for j in range(10):
-                    code = a+str(i)+str(j)
-                    vocab['M'+code] = ATC_topic(a)
-    
-    elif level==2:
-        #categories
-        v1 = construct_dict(1)
-        for k in v1:
-            # order is important here
-            if k.startswith('D'):
-                vocab[k] = len(vocab)+1
-            elif k.startswith('M'):
-                vocab[k] = vocab['D'+k[1:]]
-    
-    elif level==3:
-        v2 = construct_dict(2)
-        for k in v2:
-            if k.startswith('D'):
-                for i in range(10):
-                    code = k+str(i)
-                    vocab[code] = i+1
-        
-    return vocab
 
 
