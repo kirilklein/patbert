@@ -1,40 +1,7 @@
 import string
 import pickle as pkl
-import numpy as np
 
-def ICD_topic(code):
-    assert code[0] == 'D', "ICD code must start with 'D'"
-    options = [
-        ("A00","B99"), # Certain Infectious and Parasitic Diseases
-        ("C00","D48"), # Neoplasms
-        ("D50","D89"), # Blood, Blood-Forming Organs, and Certain Disorders Involving the Immune Mechanism
-        ("E00","E90"), # Endocrine, Nutritional, and Metabolic Diseases, and Immunity Disorders
-        ("F00","F99"), # Mental, Behavioral, and Neurodevelopmental Disorders
-        ("G00","G99"), # Diseases of the Nervous System
-        ("H00","H59"), # Diseases of the Eye and Adnexa
-        ("H60","H95"), # Diseases of the Ear and Mastoid Process
-        ("I00","I99"), # Diseases of the Circulatory System
-        ("J00","J99"), # Diseases of the Respiratory System
-        ("K00","K93"), # Diseases of the Digestive System
-        ("L00","L99"), # Diseases of the Skin and Subcutaneous Tissue
-        ("M00","M99"), # Diseases of the Musculoskeletal System and Connective Tissue
-        ("N00","N99"), # Diseases of the Genitourinary System
-        ("O00","O99"), # Pregnancy, Childbirth, and the Puerperium
-        ("P00","P96"), # Certain Conditions Originating in the Perinatal Period
-        ("Q00","Q99"), # Congenital Malformations, Deformations, and Chromosomal Abnormalities
-        ("R00","R99"), # Symptoms, Signs, and Ill-Defined Conditions
-        ("S00","T98"), # Injury, Poisoning, and Certain Other Consequences of External Causes
-        ("X60","Y09"), # External Causes of Injury
-        ("Z00","Z99"), # Factors Influencing Health Status and Contact with Health Services
-    ]   
-    for i, option in enumerate(options):
-        if option[0] <= code[1:4] <= option[1]:
-            return i+1
-        elif code.startswith("DU"): # special codes (childbirth and pregnancy)
-            return len(options)+2
-        elif code.startswith("DV"): #weight, height and various other codes
-            return len(options)+3
-    return len(options)+4
+
 
 """  ("UA","UA"), # Abdominal Circumference [cm]
         ("UB","UB"), # Orificiums opening into [cm]
@@ -99,16 +66,8 @@ def ICD_topic(code):
         return 23
 """
 
-# TODO: use subtopics from SKS to further divide the codes
-def ATC_topic(code):
-    atc_topic_ls = ['A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V']
-    atc_topic_dic = {topic:(i+1) for i, topic in enumerate(atc_topic_ls)}
-    if code[0] in atc_topic_dic:
-        return atc_topic_dic[code[0]]
-    else:
-        return len(atc_topic_ls)+2 #we start at 1, so we need to add 2
-
 def sks_codes_to_list():
+    """Convert the SKScomplete list of codes to a list of codes in pickles format."""
     codes = []
     with open("..\\..\\data\\medical\\SKScomplete.txt") as f:
         for line in f:
@@ -124,81 +83,125 @@ class SKS_CODES():
         with open("..\\..\\data\\medical\\SKScodes.pkl", "rb") as f:
             self.codes = pkl.load(f)
         self.vocabs = []
-    def get_codes(self, signature):
-        codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
-        return codes
-    def get_icd(self):
-        codes = self.get_codes('dia')
-        return [c for c in codes if len(c)>=4]
-    def get_atc(self):
-        return self.get_codes('atc')
-    def get_adm(self):
-        return self.get_codes('adm')
-    def get_operations(self):
-        return self.get_codes('opr')
-    def get_procedures(self):
-        return self.get_codes('pro')
-    def get_special_codes(self):
-        return self.get_codes('til')
-    def get_ext_injuries(self):
-        return self.get_codes('uly')
-    def get_studies(self):
-        """MR scans, CT scans, etc."""
-        return self.get_codes('und')
 
     def __call__(self):
         """return vocab dics"""
         for lvl in range(4):
             self.vocabs.append(self.construct_vocab_dic(lvl))
 
+    def get_codes(self, signature, min_len=2):
+        codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
+        return [c for c in codes if len(c)>=min_len]
+        
+    def get_icd(self):
+        return self.get_codes('dia', min_len=4)
+    def get_atc(self):
+        codes = self.get_codes('atc', min_len=4)
+        codes[codes.index('N05CC10')] = 'MZ99' # thalidomid, wrongly generated code will be assigned a special token
+        return codes
+    def get_adm(self):
+        print("Not finished yet!")
+        return self.get_codes('adm')
+    def get_operations(self):
+        print("Not finished yet!")
+        return self.get_codes('opr')
+    def get_procedures(self):
+        print("Not finished yet!")
+        return self.get_codes('pro')
+    def get_special_codes(self):
+        print("Not finished yet!")
+        return self.get_codes('til')
+    def get_ext_injuries(self):
+        print("Not finished yet!")
+        return self.get_codes('uly')
+    def get_studies(self):
+        """MR scans, CT scans, etc."""
+        return self.get_codes('und')
+
     def construct_vocab_dic(self, level):
         """construct a dictionary of codes and their topics"""
         vocab = {}
+        assert level<=5, "Level must be between 1 and 5"
+        icd_codes = self.get_icd()
+        atc_codes = self.get_atc()
         if level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
-                C00-D48 (Diseases of the blood and blood-forming organs), etc."""
-            icd_codes = self.get_icd()
+            C00-D48 (Diseases of the blood and blood-forming organs), etc."""
             for code in icd_codes:
-                vocab[code] = ICD_topic(code[1:])
-            atc_codes = self.get_atc()
+                vocab[code] = self.ICD_topic(code)
             for code in atc_codes:
-                if len(code) > 1:
-                    vocab[code] = ATC_topic(code[1:])
+                vocab[code] = self.ATC_topic(code)
             # TODO: add other codes
-            return vocab
-        elif level==2:
-            """Category level e.g. A01, A02, etc."""
-            icd_codes = self.get_icd()
-            vocab = self.enumerate_codes_category(icd_codes, vocab)
-            atc_codes = self.get_atc()
-            vocab = self.enumerate_codes_category(atc_codes, vocab)
-        elif level==3:
-            """Subcategory level e.g. A01.0, A01.1, etc."""
-            icd_codes = self.get_icd()
-            vocab = self.enumerate_codes_subcategory(icd_codes, vocab)
-            atc_codes = self.get_atc()
-            vocab = self.enumerate_codes_subcategory(atc_codes, vocab)
         else:
-            print("Level not implemented")
+            # Looks good so far
+            vocab = self.enumerate_codes_lvl(icd_codes, vocab, level)
+            vocab = self.enumerate_codes_lvl(atc_codes, vocab, level)
         return vocab
+    
+    
+    
+    def get_temp_vocab_atc_cat(self, codes):
+        pass
 
-    def get_temp_vocab_icd_atc_cat(self, codes):
-        """Construct a temporary vocabulary for categories for icd and atc codes"""
-        temp_vocab = {}                
-        for code in codes:
-                if code[1:4] not in temp_vocab: # 1-4 corresponds to category for icd and atc codes
-                    temp_vocab[code[1:4]] = len(temp_vocab)+1
-        return temp_vocab
+    @staticmethod
+    def insert_voc(code, voc):
+        """Insert a code into the vocabulary"""
+        if code not in voc:
+            voc[code] = len(voc)+1
+        return voc
+    
 
-    def enumerate_codes_category(self, codes, vocab):
+    def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
-        if codes[0].startswith('D') or codes[0].startswith('M'):
-            temp_vocab = self.get_temp_vocab_icd_atc_cat(codes)
+        if lvl==2:
+            if codes[0].startswith('D'):
+                temp_vocab = self.get_temp_vocab_icd(codes, lvl)
+            elif codes[0].startswith('M'):
+                pass
+            else:
+                print(f"Code type starting with {code[0]} not implemented yet")
+
             for code in codes:
-                vocab[code] =  temp_vocab[code[1:4]]
-        else:
-            print(f"Code type starting with {code[0]} not implemented yet")
+                if code.startswith('D'):    
+                    if code.startswith('DU') or code.startswith('DV'):
+                        # special codes
+                        #TODO: have a closer look at pregnancy weeks!
+                        if code[2].isdigit():
+                            # special code followed by two digits  
+                            vocab[code] =  temp_vocab[code[:2]]
+                        elif code[2]=='R':
+                            vocab[code] = temp_vocab[code[:4]]
+                        else:
+                            vocab[code] =  temp_vocab[code[:3]]
+                    else:
+                        vocab[code] =  temp_vocab[code[:4]]
+        elif lvl==3:
+            pass
         return vocab
+
+    
+    def get_temp_vocab_icd(self, codes, lvl):
+        """Construct a temporary vocabulary for categories for icd codes"""
+        temp_vocab = {}                
+        special_codes_u = ['DUA', 'DUB', 'DUH', 'DUP', 'DUT'] # different birth-related codes
+        special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK'] # placenta weight, height weight ...
+        special_codes = special_codes_u + special_codes_v
+        if lvl==2:
+            for code in codes:
+                if code.startswith('DU') or code.startswith('DV'):
+                    special_code_bool = [code.startswith(s) for s in special_codes]
+                    if any(special_code_bool):
+                        key = special_codes[special_code_bool.index(True)]
+                        temp_vocab = self.insert_voc(key, temp_vocab)
+                        continue 
+                    if code[3].isdigit(): # duration of pregancy DUwwDdd
+                        temp_vocab = self.insert_voc(code[:2], temp_vocab)
+                        continue 
+                else: 
+                    temp_vocab = self.insert_voc(code[:4], temp_vocab)
+        elif lvl==3:
+            pass
+        return temp_vocab
 
     def enumerate_codes_subcategory(self, codes, vocab):
         an_vocab = self.alphanumeric_vocab()
@@ -209,11 +212,67 @@ class SKS_CODES():
                 vocab[code] = an_vocab[code[4]]
         return vocab
 
-    def alphanumeric_vocab(self):
+    @staticmethod
+    def two_digit_vocab():
+        """Construct a vocabulary for two digit codes"""
+        vocab = {}
+        for i in range(10):
+            for j in range(10):
+                vocab[str(i)+str(j)] = i*10+j+1
+        return vocab
+    @staticmethod
+    def alphanumeric_vocab():
         alphanumeric = string.ascii_uppercase + string.digits
         vocab = {a:i+1 for i, a in enumerate(alphanumeric)} 
         # first value is reserved for 0
         return vocab
+
+    @staticmethod
+    def ATC_topic(code):
+        assert code[0] == 'M', f"ATC code must start with 'M, code: {code}'"
+        atc_topic_ls = ['A', 'B', 'C', 'D', 'G', 'H', 'J', 'L', 'M', 'N', 'P', 'R', 'S', 'V']
+        atc_topic_dic = {topic:(i+1) for i, topic in enumerate(atc_topic_ls)}
+        if code[1] in atc_topic_dic:
+            return atc_topic_dic[code[1]]
+        else:
+            return len(atc_topic_ls)+2 #we start at 1, so we need to add 2
+    @staticmethod
+    def ICD_topic(code):
+        assert code[0] == 'D', f"ICD code must start with 'D', code: {code}"
+        options = [
+            ("A00","B99"), # Certain Infectious and Parasitic Diseases
+            ("C00","D48"), # Neoplasms
+            ("D50","D89"), # Blood, Blood-Forming Organs, and Certain Disorders Involving the Immune Mechanism
+            ("E00","E90"), # Endocrine, Nutritional, and Metabolic Diseases, and Immunity Disorders
+            ("F00","F99"), # Mental, Behavioral, and Neurodevelopmental Disorders
+            ("G00","G99"), # Diseases of the Nervous System
+            ("H00","H59"), # Diseases of the Eye and Adnexa
+            ("H60","H95"), # Diseases of the Ear and Mastoid Process
+            ("I00","I99"), # Diseases of the Circulatory System
+            ("J00","J99"), # Diseases of the Respiratory System
+            ("K00","K93"), # Diseases of the Digestive System
+            ("L00","L99"), # Diseases of the Skin and Subcutaneous Tissue
+            ("M00","M99"), # Diseases of the Musculoskeletal System and Connective Tissue
+            ("N00","N99"), # Diseases of the Genitourinary System
+            ("O00","O99"), # Pregnancy, Childbirth, and the Puerperium
+            ("P00","P96"), # Certain Conditions Originating in the Perinatal Period
+            ("Q00","Q99"), # Congenital Malformations, Deformations, and Chromosomal Abnormalities
+            ("R00","R99"), # Symptoms, Signs, and Ill-Defined Conditions
+            ("S00","T98"), # Injury, Poisoning, and Certain Other Consequences of External Causes
+            ("X60","Y09"), # External Causes of Injury
+            ("Z00","Z99"), # Factors Influencing Health Status and Contact with Health Services
+        ]   
+        for i, option in enumerate(options):
+            if option[0] <= code[1:4] <= option[1]:
+                return i+1
+            elif code.startswith("DU"): # special codes (childbirth and pregnancy)
+                return len(options)+2
+            elif code.startswith("DV"): #weight, height and various other codes
+                return len(options)+3
+        return len(options)+4
+
+
+
 
 
 def construct_dict(level):
@@ -252,30 +311,3 @@ def construct_dict(level):
     return vocab
 
 
-
-# Probably not needd
-def ICD_topic_arr(codes):
-    condlist = [(codes>='A00') & (codes<='B99'),
-                (codes>='C00') & (codes<='D48'),
-                (codes>='D50') & (codes<='D89'),
-                (codes>='E00') & (codes<='E90'),
-                (codes>='F00') & (codes<='F99'),
-                (codes>='G00') & (codes<='G99'),
-                (codes>='H00') & (codes<='H59'),
-                (codes>='H60') & (codes<='H95'),
-                (codes>='I00') & (codes<='I99'),
-                (codes>='J00') & (codes<='J99'),
-                (codes>='K00') & (codes<='K93'),
-                (codes>='L00') & (codes<='L99'),
-                (codes>='M00') & (codes<='M99'),
-                (codes>='N00') & (codes<='N99'),
-                (codes>='O00') & (codes<='O99'),
-                (codes>='P00') & (codes<='P96'),
-                (codes>='Q00') & (codes<='Q99'),
-                (codes>='R00') & (codes<='R99'),
-                (codes>='S00') & (codes<='T98'),
-                (codes>='X60') & (codes<='Y09'),
-                (codes>='Z00') & (codes<='Z99')]
-    choicelist = ['Dg'+str(i) for i in range(len(condlist))]
-    choicelist.append('DUNK')
-    return np.select(condlist, choicelist, default=choicelist[-1]), choicelist
