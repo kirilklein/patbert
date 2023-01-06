@@ -182,7 +182,13 @@ class SKSVocabConstructor():
         special_codes_u = ['DUA', 'DUB', 'DUH', 'DUP', 'DUT'] # different birth-related codes
         special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK01'] # placenta weight, height weight ...
         special_codes = special_codes_u + special_codes_v
-
+        if lvl>=3:
+            temp_vocab = self.alphanumeric_vocab(temp_vocab)
+            temp_vocab = self.two_digit_vocab(temp_vocab)
+            temp_vocab = self.insert_voc('XX', temp_vocab)
+            temp_vocab = self.insert_voc('02A', temp_vocab)
+            return temp_vocab
+        
         for code in codes:
             if code.startswith('DU') or code.startswith('DV'):
                 # special codes
@@ -200,11 +206,7 @@ class SKSVocabConstructor():
             else: 
                 if lvl==2:
                     temp_vocab = self.insert_voc(code[:4], temp_vocab)
-        if lvl>=3:
-            temp_vocab = self.alphanumeric_vocab(temp_vocab)
-            temp_vocab = self.two_digit_vocab(temp_vocab)
-            temp_vocab = self.insert_voc('XX', temp_vocab)
-            temp_vocab = self.insert_voc('02A', temp_vocab)
+        
             
         return temp_vocab
 
