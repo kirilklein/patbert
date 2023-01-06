@@ -111,18 +111,30 @@ class SKSVocabConstructor():
                     if lvl==2:
                         vocab[code] =  temp_vocab[code[:4]]
                     else:
-                        if (lvl+2)<=len(code): 
-                            vocab[code] = temp_vocab[code[lvl+1]]
-                        else:
-                            vocab[code] = 0
+                        vocab = self.insert_code(vocab, code, temp_vocab, lvl+1)
             elif code.startswith('M'):
                 if lvl==2:
                     vocab[code] = temp_vocab[code[2:4]]
-                
-               
-
+                elif lvl==3 or lvl==4:
+                    vocab = self.insert_code(vocab, code, temp_vocab, lvl+1)
+                else:
+                    vocab = self.insert_code(vocab, code, temp_vocab, [lvl+1, lvl+3])
         return vocab
     
+    @staticmethod
+    def insert_code(vocab, code, temp_vocab, ids):
+        if isinstance(ids, int):
+            if len(code)>=(ids+1):
+                vocab[code] = temp_vocab[code[ids]]
+            else:
+                vocab[code] = 0
+        elif isinstance(ids, list):
+            if len(code)>=(ids[1]):
+                vocab[code] = temp_vocab[code[ids[0]:ids[1]]]
+            else:
+                vocab[code] = 0
+        return vocab
+        
     def handle_special_codes(self, code, lvl, vocab, temp_vocab):
         """Handle special codes DU, DV"""
         if code[2].isdigit():
@@ -171,38 +183,29 @@ class SKSVocabConstructor():
         special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK01'] # placenta weight, height weight ...
         special_codes = special_codes_u + special_codes_v
 
+        for code in codes:
+            if code.startswith('DU') or code.startswith('DV'):
+                # special codes
+                special_code_bool = [code.startswith(s) for s in special_codes]
+                if any(special_code_bool):
+                    key = special_codes[special_code_bool.index(True)]
+                    if lvl==2:
+                        temp_vocab = self.insert_voc(key, temp_vocab) 
+                elif code[3].isdigit(): # duration of pregancy DUwwDdd or size of placenta 
+                    if lvl==2:
+                        temp_vocab = self.insert_voc(code[:2], temp_vocab)
+                else:
+                    if lvl==2:
+                        temp_vocab = self.insert_voc(code[:3], temp_vocab)
+            else: 
+                if lvl==2:
+                    temp_vocab = self.insert_voc(code[:4], temp_vocab)
         if lvl>=3:
             temp_vocab = self.alphanumeric_vocab(temp_vocab)
             temp_vocab = self.two_digit_vocab(temp_vocab)
             temp_vocab = self.insert_voc('XX', temp_vocab)
             temp_vocab = self.insert_voc('02A', temp_vocab)
-            return temp_vocab
-        else:
-            for code in codes:
-                if code.startswith('DU') or code.startswith('DV'):
-                    # special codes
-                    special_code_bool = [code.startswith(s) for s in special_codes]
-                    if any(special_code_bool):
-                        key = special_codes[special_code_bool.index(True)]
-                        if lvl==2:
-                            temp_vocab = self.insert_voc(key, temp_vocab) 
-                        # elif lvl==3:
-                            # zero_codes = [key.startswith(s) for s in ['DUA', 'DUB', 'DUH', 'DVRK01']]
-                            # if any(zero_codes):
-                                # temp_vocab[code] = 0
-                            # elif code.startswith():
-                                # temp_vocab = self.insert_voc(code[:4], temp_vocab)
-
-                    elif code[3].isdigit(): # duration of pregancy DUwwDdd or size of placenta 
-                        if lvl==2:
-                            temp_vocab = self.insert_voc(code[:2], temp_vocab)
-                    else:
-                        if lvl==2:
-                            temp_vocab = self.insert_voc(code[:3], temp_vocab)
-                else: 
-                    if lvl==2:
-                        temp_vocab = self.insert_voc(code[:4], temp_vocab)
-                        
+            
         return temp_vocab
 
     def get_temp_vocab_atc(self, lvl):
@@ -230,14 +233,6 @@ class SKSVocabConstructor():
             temp_vocab[a] = len(temp_vocab)
         return temp_vocab
 
-    def enumerate_codes_subcategory(self, codes, vocab):
-        an_vocab = self.alphanumeric_vocab()
-        for code in codes:
-            if len(code)<5:
-                vocab[code] = 0
-            else:
-                vocab[code] = an_vocab[code[4]]
-        return vocab
     @staticmethod
     def insert_voc(code, voc):
         """Insert a code into the vocabulary"""
@@ -315,3 +310,4 @@ class SKSVocabConstructor():
 
 
 
+#TODO: there exist subtopics for ICD10 codes, but I don't know how to implement them yet
