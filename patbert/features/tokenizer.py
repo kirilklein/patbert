@@ -2,7 +2,6 @@ import torch
 import typer
 import pickle as pkl
 from os.path import join, split
-from patbert.common.medical import ICD_topic
 
 
 class EHRTokenizer():
@@ -64,6 +63,7 @@ class HierarchicalTokenizer():
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
+        self.vocabs = [self.vocabulary]
         self.top_lvl_vocab = self.vocabulary.copy()
         self.max_len = max_len
         self.len_background = len_background
@@ -92,7 +92,7 @@ class HierarchicalTokenizer():
                     first_visit = visit        
                 # we will add the background sentence later, as it requires additional embeddings
                 code_ls.append(code)
-                idx_ls.append(self.encode(code)), top_level_idx_ls.append(self.encode_top_lvl(code))
+                idx_ls.append(self.encode(code)), top_level_idx_ls.append(self.encode_type(code))
                 visit_ls.append(visit)
                 age_ls.append(age), los_ls.append(los), abs_pos_ls.append(abs_pos), value_ls.append(value)
             

@@ -1,0 +1,43 @@
+from patbert.common import medical
+from patbert.common import common
+sks = medical.SKSVocabConstructor()
+
+
+
+def test_codes():
+    icd_codes = sks.get_icd()
+    atc_codes = sks.get_atc()
+    assert all([icd.startswith('D') for icd in icd_codes]), 'ICD codes should start with D'
+    assert all([atc.startswith('M') for atc in atc_codes]), 'ATC codes should start with M'
+
+def test_topics():
+    vocab = sks.construct_vocab_dic(1)
+    # test some random topics
+    for topic in ['DA', 'DK', 'DU', 'DV', 'MA', 'ML', 'MG']:
+        v = {k:v for k,v in vocab.items() if k.startswith(topic)}
+        assert common.check_same_elements(list(v.values())), 'All values should be the same'
+
+def test_vocab():
+    for level in range(2,5):
+        vocab = sks.construct_vocab_dic(level)
+        if level==2:
+            for category in ['DG30', 'DUH', 'DUA', 'MA03', 'MH01']:
+                v = {k:v for k,v in vocab.items() if k.startswith(category)}
+                assert common.check_same_elements(list(v.values())), 'All values should be the same'
+        # get all codes that start with DU followed by a digit
+        vDU = {k:v for k,v in vocab.items() if k.startswith('DU') and k[2].isdigit()}
+        vDV = {k:v for k,v in vocab.items() if k.startswith('DV') and k[2].isdigit()}
+        if level==2:
+            assert common.check_same_elements(list(vDU.values())), 'All values should be the same'
+            assert common.check_same_elements(list(vDV.values())), 'All values should be the same'
+        else:
+            assert all([value==0 for value in vDU.values()]), 'Values should be 0'
+            assert all([value==0 for value in vDV.values()]), 'Values should be 0'
+        if level==3:
+            v = {k:v for k,v in vocab.items() if k.startswith('DVA')}
+            assert common.check_unique(list(v.values())), 'All values should be unique'
+
+
+
+                
+    

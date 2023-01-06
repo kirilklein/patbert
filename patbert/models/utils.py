@@ -1,5 +1,5 @@
 from transformers import Trainer, BertConfig, BertForPreTraining
-from patbert.features.embeddings import HierarchicalEmbedding
+from patbert.features.embeddings import TrainableHierarchicalEmbedding
 from patbert.common import common, pytorch
 import torch
 from tqdm import tqdm
@@ -25,7 +25,7 @@ class CustomPreTrainer(Trainer):
         self.checkpoint_freq = checkpoint_freq
         self.from_checkpoint = from_checkpoint
         self.config = config
-        self.embeddings = HierarchicalEmbedding()# TODO: continue here, pass in the vocab etc.
+        self.embeddings = TrainableHierarchicalEmbedding()# TODO: continue here, pass in the vocab etc.
         self.embeddings.weight.requires_grad = False # freeze embeddings
         self.args = args
     def __call__(self):

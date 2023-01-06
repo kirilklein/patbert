@@ -14,3 +14,9 @@ def get_encodings_from_npz(file):
 def get_inverse_dic(vocab_dic):
     """Returns the inverse of a dictionary"""
     return {v: k for k, v in vocab_dic.items()}
+
+def check_same_elements(lst):
+    return all(x == lst[0] for x in lst)
+
+def check_unique(lst):
+    return len(lst) == len(set(lst))
