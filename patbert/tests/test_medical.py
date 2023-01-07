@@ -36,7 +36,16 @@ def test_vocab():
         if level==3:
             v = {k:v for k,v in vocab.items() if k.startswith('DVA')}
             assert common.check_unique(list(v.values())), 'All values should be unique'
-
+            # check uniqueness of values for some topics
+            # values = []
+            # for topic in ['DG', 'DU', 'DV', 'MA', 'ML', 'MG']:
+                # values.append([v for k,v in vocab.items() if k.startswith(topic)][0])
+                # assert common.check_unique(values), 'All values should be unique'    
+        if level==5:
+            v = common.key_length(vocab, 5)
+            for end_int in ['01', '02', '03']:
+                v_int = common.inspect_dic(v, 'M','01') # medical
+                assert common.check_same_elements(list(v_int.values())), 'at lower levels same pattern should have same index'
 
 
                 
