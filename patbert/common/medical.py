@@ -83,7 +83,7 @@ class SKSVocabConstructor():
     def get_studies(self):
         return self.get_codes_type('und')
     def get_birthmonth(self):
-        return ['<BIRTHMONTH>'+str(i) for i in range(1,13)]
+        return ['<BIRTHMONTH>'+ str(i) for i in range(1,13)]
     def get_birthyear(self):
         return ['<BIRTHYEAR>' + str(i) for i in range(1900,2022)]
 
@@ -95,11 +95,13 @@ class SKSVocabConstructor():
 
         if level==0:
             special_tokens = ['0', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+                        '<MALE>', '<FEMALE>']
+            vocab = {token:idx for idx, token in enumerate(special_tokens)}
             # TODO: include level 0
             # the vocab should look as follow {'0':0, '<CLS>':1, ..., 'D...':10, 'D...':10, ...}
-            vocab = self.enumerate_type(vocab)
-            vocab = {token:idx for idx, token in enumerate(special_tokens)}
+            all_codes = self.get_icd()+self.get_atc()+self.get_lab()+self.get_birthyear()+self.get_birthmonth()
+            vocab = self.enumerate_codes_lvl(all_codes, vocab, level=0)
+            
         elif level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
             C00-D48 (Diseases of the blood and blood-forming organs), etc."""
@@ -121,6 +123,7 @@ class SKSVocabConstructor():
             # TODO: add adm, opr, pro, til, uly, und, lab
         return vocab
     
+
     def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
         if not self.same_type(codes):
@@ -132,7 +135,9 @@ class SKSVocabConstructor():
         else:
             print(f"Code type starting with {code[0]} not implemented yet")
         for code in codes:
-            if code.startswith('D'):    
+            if code.startswith('D'):   
+                if lvl==0:
+                    vocab[code] = temp_vocab['D'] 
                 if code.startswith(('DU', 'DV')):
                     vocab = self.handle_special_codes(code, lvl, vocab, temp_vocab)
                 else:
