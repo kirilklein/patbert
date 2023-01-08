@@ -44,7 +44,7 @@ def test_vocab():
         if level==5:
             v = common.key_length(vocab, 5)
             for end_int in ['01', '02', '03']:
-                v_int = common.inspect_dic(v, 'M','01') # medical
+                v_int = common.inspect_dic(v, 'M',end_int) # medical
                 assert common.check_same_elements(list(v_int.values())), 'at lower levels same pattern should have same index'
 
 

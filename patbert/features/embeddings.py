@@ -1,4 +1,5 @@
 from torch import nn
+import numpy as np
 import torch
 import string
 from patbert.common import medical
@@ -140,29 +141,42 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, vocab, top_lvl_vocab, token2top_lvl, embedding_dim, kappa=2):
-        super().__init__(vocab, top_lvl_vocab, token2top_lvl, embedding_dim, kappa)
+    def __init__(self, embedding_dim, kappa=2):
+        self.embedding_dim = embedding_dim
+        self.sks = medical.SKSVocabConstructor()
+        #super().__init__(vocab, top_lvl_vocab, token2top_lvl, embedding_dim, kappa)
+        
+    # def initialize_static_embeddings(self):
+    #     self.top_lvl_embedding = Embedding(len(self.top_lvl_vocab), self.embedding_dim)
 
-    def initialize_static_embeddings(self):
-        self.top_lvl_embedding = Embedding(len(self.top_lvl_vocab), self.embedding_dim)
+    #     self.birthdate_embedding = Embedding(self.num_birthyears, self.embedding_dim, _weight=torch.randn()) # number of birthmonths is smaller and so we can reuse the same embedding
+    #     self.lab_test_embedding = Embedding(self.num_lab_tests+1, self.embedding_dim) # one for rare lab tests
 
-        self.birthdate_embedding = Embedding(self.num_birthyears, self.embedding_dim, _weight=torch.randn()) # number of birthmonths is smaller and so we can reuse the same embedding
-        self.lab_test_embedding = Embedding(self.num_lab_tests+1, self.embedding_dim) # one for rare lab tests
-
-        self.icd_atc_topic_embedding = Embedding(22, self.embedding_dim) # we add one topic for rare icd, atc contains 14 topics
-        self.icd_atc_category_embedding = Embedding(len(string.ascii_uppercase)*10*10, self.embedding_dim) # this will cover all possible categories
-        # TODO: split by subtopics
-        self.icd_atc_subcategory_embedding = Embedding(len(string.ascii_uppercase)+10, self.embedding_dim) # all subcategories can be described by adding additional alphanumeric symbols
+    #     self.icd_atc_topic_embedding = Embedding(22, self.embedding_dim) # we add one topic for rare icd, atc contains 14 topics
+    #     self.icd_atc_category_embedding = Embedding(len(string.ascii_uppercase)*10*10, self.embedding_dim) # this will cover all possible categories
+    #     # TODO: split by subtopics
+    #     self.icd_atc_subcategory_embedding = Embedding(len(string.ascii_uppercase)+10, self.embedding_dim) # all subcategories can be described by adding additional alphanumeric symbols
        
-        self.top_lvl_embedding.weight.requires_grad = False
-        self.birthdate_embedding .weight.requires_grad = False
-        self.lab_test_embedding.weight.requires_grad = False
-        self.icd_atc_category_embedding.weight.requires_grad = False
-        self.icd_atc_topic_embedding.weight.requires_grad = False
-        self.icd_atc_subcategory_embedding.weight.requires_grad = False
+    #     self.top_lvl_embedding.weight.requires_grad = False
+    #     self.birthdate_embedding .weight.requires_grad = False
+    #     self.lab_test_embedding.weight.requires_grad = False
+    #     self.icd_atc_category_embedding.weight.requires_grad = False
+    #     self.icd_atc_topic_embedding.weight.requires_grad = False
+    #     self.icd_atc_subcategory_embedding.weight.requires_grad = False
+    #     
 
-    def forward(self, idxs, values):
-        return self.embedding()
+    def __call__(self, codes, values):
+        id_arr_ls = self.get_indeces_from_codes(codes)
+        # return self.embedding()
+        
+
+    def get_ids_from_codes(self, codes):
+        vocabs = self.sks()
+        id_arr_ls = []
+        codes = np.array(codes, dtype='str')
+        for vocab in vocabs:
+            id_arr_ls.append(np.vectorize(lambda x: vocab.get(x, 0))(codes))
+        return id_arr_ls
 
     def initialize_weights(self):
         initial_weights = torch.zeros(self.num_embeddings, self.embedding_dim)

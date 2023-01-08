@@ -20,3 +20,11 @@ def check_same_elements(lst):
 
 def check_unique(lst):
     return len(lst) == len(set(lst))
+
+def inspect_dic(dic, start_str='', end_str=''):
+    """Return dic where keys start with start_str, end/or ends with end_str"""
+    return {k:v for k, v in dic.items() if k.startswith(start_str) and k.endswith(end_str)}
+
+def key_length(dic, length):
+    """Return part of dictionary where keys have a certain length"""
+    return {k:v for k,v in dic.items() if len(k)==length}

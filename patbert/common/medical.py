@@ -3,6 +3,7 @@ import pickle as pkl
 # get file directory
 import os
 from os.path import join
+import pandas as pd
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -32,67 +33,94 @@ def sks_codes_to_list():
     with open(join(data_dir, "medical","SKScodes.pkl"), "wb") as f:
         pkl.dump(codes, f)
 
+def npu_codes_to_list():
+    """Convert the NPUlistEN221222.csv to a list of codes in pickles format."""
+    df = pd.read_csv(join(data_dir,'medical','NPUlistEN221222.csv'), 
+        encoding='latin-1', delimiter=';', usecols=['NPU code'])
+    codes = df['NPU code'].unique().tolist()
+    # replace DNK stands for local danish NPU codes
+    codes = [c.replace('DNK', 'labL').replace('NPU', 'labL') for c in codes]
+    with open(join(data_dir, "medical", "NPUcodes.pkl"), "wb") as f:
+        pkl.dump(codes, f)
+
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
     def __init__(self):
         with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
-            self.codes = pkl.load(f)
+            self.codes = list(pkl.load(f))
+        with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
+            self.codes += pkl.load(f) 
         self.vocabs = []
-
     def __call__(self):
         """return vocab dics"""
         for lvl in range(5):
             self.vocabs.append(self.construct_vocab_dic(lvl))
+        return self.vocabs
 
-    def get_codes(self, signature, min_len=2):
+    def get_codes_type(self, signature, min_len=2):
         codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
         return [c for c in codes if len(c)>=min_len]
         
+    def get_lab(self):
+        return self.get_codes_type('lab')
     def get_icd(self):
-        return self.get_codes('dia', min_len=4)
+        return self.get_codes_type('dia', min_len=4)
     def get_atc(self):
-        codes = self.get_codes('atc', min_len=4)
+        codes = self.get_codes_type('atc', min_len=4)
         codes[codes.index('N05CC10')] = 'MZ99' # thalidomid, wrongly generated code will be assigned a special token
         return codes
     def get_adm(self):
-        return self.get_codes('adm')
+        return self.get_codes_type('adm')
     def get_operations(self):
-        return self.get_codes('opr')
+        return self.get_codes_type('opr')
     def get_procedures(self):
-        return self.get_codes('pro')
+        return self.get_codes_type('pro')
     def get_special_codes(self):
-        return self.get_codes('til')
+        return self.get_codes_type('til')
     def get_ext_injuries(self):
-        return self.get_codes('uly')
+        return self.get_codes_type('uly')
     def get_studies(self):
-        return self.get_codes('und')
+        return self.get_codes_type('und')
+    def get_birthmonth(self):
+        return ['<BIRTHMONTH>'+str(i) for i in range(1,13)]
+    def get_birthyear(self):
+        return ['<BIRTHYEAR>' + str(i) for i in range(1900,2022)]
 
     def construct_vocab_dic(self, level):
         """construct a dictionary of codes and their topics"""
-        vocab = {}
-        assert level<=5, "Level must be between 0 and 5"
-        icd_codes = self.get_icd()
-        atc_codes = self.get_atc()
-        codes = icd_codes + atc_codes
+        vocab = {'0':0}
+        if not 0<=level<=5:
+            raise ValueError("Level must be between 0 and 5")
+
         if level==0:
-            special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>',
-                        'adm','dia', 'atc','opr', 'pro', 'til', 'uly', 'und', 'lab',
-                        'hospital', 'BMI', 'adm_type']
+            special_tokens = ['0', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+            # TODO: include level 0
+            # the vocab should look as follow {'0':0, '<CLS>':1, ..., 'D...':10, 'D...':10, ...}
+            vocab = self.enumerate_type(vocab)
             vocab = {token:idx for idx, token in enumerate(special_tokens)}
         elif level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
             C00-D48 (Diseases of the blood and blood-forming organs), etc."""
-            for code in codes:
-                vocab[code] = self.topic(code) # toveres icd and atc codes
+            for code in self.get_atc()+self.get_icd():
+                vocab[code] = self.topic(code) # only icd and atc codes so far
+            for i, code in enumerate(self.get_lab()):
+                vocab[code] = i+1
+            for i, code in enumerate(self.get_birthyear()):
+                vocab[code] = i+1
+            for i, code in enumerate(self.get_birthmonth()):
+                vocab[code] = i+1
         else:
             # Looks good so far
-            vocab = self.enumerate_codes_lvl(icd_codes, vocab, level)
-            vocab = self.enumerate_codes_lvl(atc_codes, vocab, level)
+            for code in self.get_lab():
+                vocab[code] = 0
+            vocab = self.enumerate_codes_lvl(self.get_icd(), vocab, level)
+            # TODO: subtopic levle for ICD10 code
+            vocab = self.enumerate_codes_lvl(self.get_atc(), vocab, level)
+            # TODO: add adm, opr, pro, til, uly, und, lab
         return vocab
     
-
     def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
         if not self.same_type(codes):
@@ -123,16 +151,13 @@ class SKSVocabConstructor():
     
     @staticmethod
     def insert_code(vocab, code, temp_vocab, ids):
+        """Insert part of the code into the vocabulary"""
         if isinstance(ids, int):
-            if len(code)>=(ids+1):
-                vocab[code] = temp_vocab[code[ids]]
-            else:
-                vocab[code] = 0
-        elif isinstance(ids, list):
-            if len(code)>=(ids[1]):
-                vocab[code] = temp_vocab[code[ids[0]:ids[1]]]
-            else:
-                vocab[code] = 0
+            ids = [ids, ids+1]
+        if len(code)>=(ids[1]):
+            vocab[code] = temp_vocab[code[ids[0]:ids[1]]]
+        else:
+            vocab[code] = 0
         return vocab
         
     def handle_special_codes(self, code, lvl, vocab, temp_vocab):
@@ -243,6 +268,7 @@ class SKSVocabConstructor():
         return voc
     @staticmethod
     def same_type(codes):
+        """Check if all codes are of the same type (ATC or ICD)"""
         # Get the first character of the first string
         first_char = codes[0][0]
         # Iterate over the strings and compare the first character of each string to the first character of the first string
