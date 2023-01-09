@@ -46,12 +46,15 @@ def npu_codes_to_list():
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self):
+    def __init__(self, special_tokens=None):
         with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
             self.codes = list(pkl.load(f))
         with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
             self.codes += pkl.load(f) 
         self.vocabs = []
+        if isinstance(special_tokens, type(None)):
+            self.special_tokens = ['0', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
     def __call__(self):
         """return vocab dics"""
         for lvl in range(5):
@@ -83,7 +86,7 @@ class SKSVocabConstructor():
     def get_studies(self):
         return self.get_codes_type('und')
     def get_birthmonth(self):
-        return ['<BIRTHMONTH>'+str(i) for i in range(1,13)]
+        return ['<BIRTHMONTH>'+ str(i) for i in range(1,13)]
     def get_birthyear(self):
         return ['<BIRTHYEAR>' + str(i) for i in range(1900,2022)]
 
@@ -93,13 +96,12 @@ class SKSVocabConstructor():
         if not 0<=level<=5:
             raise ValueError("Level must be between 0 and 5")
 
-        if level==0:
-            special_tokens = ['0', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+        if level==0:    
             # TODO: include level 0
-            # the vocab should look as follow {'0':0, '<CLS>':1, ..., 'D...':10, 'D...':10, ...}
-            vocab = self.enumerate_type(vocab)
-            vocab = {token:idx for idx, token in enumerate(special_tokens)}
+            additional_types=['D', 'M', 'L']
+            all_codes = self.get_icd()+self.get_atc()+self.get_lab()+self.get_birthyear()+self.get_birthmonth()
+            vocab = self.get_type_dic(all_codes, additional_types)
+            
         elif level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
             C00-D48 (Diseases of the blood and blood-forming organs), etc."""
@@ -121,6 +123,19 @@ class SKSVocabConstructor():
             # TODO: add adm, opr, pro, til, uly, und, lab
         return vocab
     
+    def get_type_dic(self, all_codes, additional_types):
+        """Uses the temporary vocabulary to assign a category to each code."""
+        vocab = {'0':0}
+        
+        temp_vocab = {token:idx for idx, token in enumerate(self.special_tokens+additional_types)}
+        for code in all_codes:
+                if code in additional_types:
+                    vocab[code] = temp_vocab[code[0]]
+                else:
+                    # special tokens
+                    vocab[code] = temp_vocab[code.split('>')[0]]
+        return vocab
+
     def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
         if not self.same_type(codes):
@@ -132,7 +147,7 @@ class SKSVocabConstructor():
         else:
             print(f"Code type starting with {code[0]} not implemented yet")
         for code in codes:
-            if code.startswith('D'):    
+            if code.startswith('D'):   
                 if code.startswith(('DU', 'DV')):
                     vocab = self.handle_special_codes(code, lvl, vocab, temp_vocab)
                 else:
@@ -207,6 +222,7 @@ class SKSVocabConstructor():
         special_codes_u = ['DUA', 'DUB', 'DUH', 'DUP', 'DUT'] # different birth-related codes
         special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK01'] # placenta weight, height weight ...
         special_codes = special_codes_u + special_codes_v
+
         if lvl>=3:
             temp_vocab = self.alphanumeric_vocab(temp_vocab)
             temp_vocab = self.two_digit_vocab(temp_vocab)
