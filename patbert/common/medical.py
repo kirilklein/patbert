@@ -46,15 +46,18 @@ def npu_codes_to_list():
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self, special_tokens=None):
+    def __init__(self, special_tokens=None, additional_types=None):
         with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
             self.codes = list(pkl.load(f))
         with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
             self.codes += pkl.load(f) 
         self.vocabs = []
         if isinstance(special_tokens, type(None)):
-            self.special_tokens = ['0', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+            # we will map 0 onto a zero vector
+            self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
                         '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+        if isinstance(additional_types, type(None)):
+            self.additional_types=['D', 'M', 'L']
     def __call__(self):
         """return vocab dics"""
         for lvl in range(5):
@@ -98,9 +101,9 @@ class SKSVocabConstructor():
 
         if level==0:    
             # TODO: include level 0
-            additional_types=['D', 'M', 'L']
+            
             all_codes = self.get_icd()+self.get_atc()+self.get_lab()+self.get_birthyear()+self.get_birthmonth()
-            vocab = self.get_type_dic(all_codes, additional_types)
+            vocab = self.get_type_dic(all_codes)
             
         elif level==1:
             """Topic level e.g. A00-B99 (Neoplasms), 
@@ -123,17 +126,18 @@ class SKSVocabConstructor():
             # TODO: add adm, opr, pro, til, uly, und, lab
         return vocab
     
-    def get_type_dic(self, all_codes, additional_types):
+    def get_type_dic(self, all_codes):
         """Uses the temporary vocabulary to assign a category to each code."""
         vocab = {'0':0}
-        
-        temp_vocab = {token:idx for idx, token in enumerate(self.special_tokens+additional_types)}
+        temp_keys = self.special_tokens+self.additional_types
+        temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
+        all_codes += self.special_tokens
         for code in all_codes:
-                if code in additional_types:
+                if code[0] in self.additional_types:
                     vocab[code] = temp_vocab[code[0]]
                 else:
                     # special tokens
-                    vocab[code] = temp_vocab[code.split('>')[0]]
+                    vocab[code] = temp_vocab[code.split('>')[0]+'>']
         return vocab
 
     def enumerate_codes_lvl(self, codes, vocab, lvl):
