@@ -30,10 +30,11 @@ def key_length(dic, length):
     """Return part of dictionary where keys have a certain length"""
     return {k:v for k,v in dic.items() if len(k)==length}
 
-def get_first_zero_idx(x, axis):
+def get_last_nonzero_idx(x, axis):
     """Returns index of the first 0 along axis or -1 if no zero"""
     mask = (x == 0).to(int)
-    first_zero = torch.argmax(mask, dim=axis)
+    last_nonzero = torch.argmax(mask, dim=axis)-1
+    print(last_nonzero)
     any_mask = torch.any(mask, dim=axis)
-    first_zero[~any_mask] = -1
-    return first_zero
+    last_nonzero[~any_mask] = -1
+    return last_nonzero

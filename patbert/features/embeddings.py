@@ -155,6 +155,8 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         self.scaling = scaling
     def __call__(self, codes, values):
         """Outputs a tensor of shape levels x len x emb_dim"""
+        if len(codes)!=len(values):
+            raise ValueError("Codes and values must have the same length")
         id_arr_ls = self.get_ids_from_codes(codes)
         self.embedding_ls = self.initialize_static_embeddings()
         self.set_zero_weight()
@@ -167,12 +169,12 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
             arr  = arr/lens * avg_len * self.scaling          
             arr_ls.append(arr) 
         # concatenate arr_ls to get 3d tensor
-        embedding_mat = torch.stack(arr_ls) # TODO: multiply by value
+        embedding_mat = torch.stack(arr_ls) 
         # shorter vectors at lower levels of hierarchy
         level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa) 
         embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1)*embedding_mat
-        return embedding_mat
-        # return self.embedding()
+        value_mat = self.get_value_mat(id_arr_ls, values)
+        return embedding_mat *value_mat.unsqueeze(-1)
 
     def initialize_static_embeddings(self):
         embedding_ls = []
@@ -192,12 +194,12 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         return id_arr_ls
     @staticmethod
     def get_value_mat(id_arr_ls, values):
+        if isinstance(values, type(list)):
+            values = torch.tensor(values)
+        print(type(values))
         id_arr = torch.from_numpy(np.stack(id_arr_ls))
         value_mat = torch.ones_like(id_arr).to(torch.float64)
-        last_non_zero = common.get_first_zero_idx(id_arr,0)-1
-        print(value_mat)
-        print(last_non_zero)
-        print(values)
+        last_non_zero = common.get_last_nonzero_idx(id_arr,0)
         ids1 = torch.arange(len(last_non_zero))
         value_mat[last_non_zero, ids1] = values.to(value_mat.dtype)
         return value_mat
