@@ -23,4 +23,3 @@ def test_generate(num_patients=10,
     for pat in data:
         assert len(pat['codes']) == len(pat['visits']) == len(pat['ages']) == len(pat['los'])
 
-

@@ -142,12 +142,12 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, embedding_dim, num_levels=5, kappa=2):
+    def __init__(self, embedding_dim, num_levels=6, kappa=2):
         self.embedding_dim = embedding_dim
-        self.sks = medical.SKSVocabConstructor()
+        self.sks = medical.SKSVocabConstructor(num_levels=num_levels)
         self.vocabs = self.sks()
         self.num_levels = num_levels
-
+        self.kappa = kappa
     def __call__(self, codes, values):
         """Outputs a tensor of shape levels x len x emb_dim"""
         id_arr_ls = self.get_ids_from_codes(codes)

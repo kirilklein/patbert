@@ -46,7 +46,7 @@ def npu_codes_to_list():
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self, special_tokens=None, additional_types=None):
+    def __init__(self, special_tokens=None, additional_types=None, num_levels=6):
         with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
             self.codes = list(pkl.load(f))
         with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
@@ -58,9 +58,10 @@ class SKSVocabConstructor():
                         '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
         if isinstance(additional_types, type(None)):
             self.additional_types=['D', 'M', 'L']
+        self.num_levels = num_levels
     def __call__(self):
         """return vocab dics"""
-        for lvl in range(5):
+        for lvl in range(self.num_levels):
             self.vocabs.append(self.construct_vocab_dic(lvl))
         return self.vocabs
 
@@ -69,25 +70,25 @@ class SKSVocabConstructor():
         return [c for c in codes if len(c)>=min_len]
         
     def get_lab(self):
-        return self.get_codes_type('lab')
+        return sorted(self.get_codes_type('lab'))
     def get_icd(self):
-        return self.get_codes_type('dia', min_len=4)
+        return sorted(self.get_codes_type('dia', min_len=4))
     def get_atc(self):
         codes = self.get_codes_type('atc', min_len=4)
         codes[codes.index('N05CC10')] = 'MZ99' # thalidomid, wrongly generated code will be assigned a special token
-        return codes
+        return sorted(codes)
     def get_adm(self):
-        return self.get_codes_type('adm')
+        return sorted(self.get_codes_type('adm'))
     def get_operations(self):
-        return self.get_codes_type('opr')
+        return sorted(self.get_codes_type('opr'))
     def get_procedures(self):
-        return self.get_codes_type('pro')
+        return sorted(self.get_codes_type('pro'))
     def get_special_codes(self):
-        return self.get_codes_type('til')
+        return sorted(self.get_codes_type('til'))
     def get_ext_injuries(self):
-        return self.get_codes_type('uly')
+        return sorted(self.get_codes_type('uly'))
     def get_studies(self):
-        return self.get_codes_type('und')
+        return sorted(self.get_codes_type('und'))
     def get_birthmonth(self): # needs to be time2vec later
         return ['<BIRTHMONTH>'+ str(i) for i in range(1,13)]
     def get_birthyear(self): # needs to be time2vec later
