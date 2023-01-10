@@ -96,7 +96,7 @@ class SKSVocabConstructor():
 
     def construct_vocab_dic(self, level):
         """construct a dictionary of codes and their topics"""
-        vocab = {'0':0}
+        vocab = {'<ZERO>':0}
         if not 0<=level<=5:
             raise ValueError("Level must be between 0 and 5")
 
@@ -129,7 +129,7 @@ class SKSVocabConstructor():
     
     def get_type_dic(self, all_codes):
         """Uses the temporary vocabulary to assign a category to each code."""
-        vocab = {'0':0}
+        vocab = {'<ZERO>':0}
         temp_keys = self.special_tokens+self.additional_types
         temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
         all_codes += self.special_tokens

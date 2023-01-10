@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import string
 from patbert.common import medical
+from patbert.common import common
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, segment, age
@@ -142,20 +143,28 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, embedding_dim, num_levels=6, kappa=2):
+    def __init__(self, embedding_dim, num_levels=6, kappa=3, scaling=5):
+        """
+        kappa: exponent to make vectors shorter with each hierarchy level
+        scaling: scale initial length of the vector"""
         self.embedding_dim = embedding_dim
         self.sks = medical.SKSVocabConstructor(num_levels=num_levels)
         self.vocabs = self.sks()
         self.num_levels = num_levels
         self.kappa = kappa
+        self.scaling = scaling
     def __call__(self, codes, values):
         """Outputs a tensor of shape levels x len x emb_dim"""
         id_arr_ls = self.get_ids_from_codes(codes)
         self.embedding_ls = self.initialize_static_embeddings()
+        self.set_zero_weight()
         self.set_to_static()
         arr_ls = []
         for id_arr, embedding in zip(id_arr_ls, self.embedding_ls):
-            arr = embedding(torch.LongTensor(id_arr))            
+            arr = embedding(torch.LongTensor(id_arr))
+            lens = torch.norm(arr, dim=0)
+            avg_len = torch.mean(lens)
+            arr  = arr/lens * avg_len * self.scaling          
             arr_ls.append(arr) 
         # concatenate arr_ls to get 3d tensor
         embedding_mat = torch.stack(arr_ls) # TODO: multiply by value
@@ -181,7 +190,22 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         for vocab in self.vocabs:
             id_arr_ls.append(np.vectorize(lambda x: vocab.get(x, 0))(codes))
         return id_arr_ls
+    @staticmethod
+    def get_value_mat(id_arr_ls, values):
+        id_arr = torch.from_numpy(np.stack(id_arr_ls))
+        value_mat = torch.ones_like(id_arr).to(torch.float64)
+        last_non_zero = common.get_first_zero_idx(id_arr,0)-1
+        print(value_mat)
+        print(last_non_zero)
+        print(values)
+        ids1 = torch.arange(len(last_non_zero))
+        value_mat[last_non_zero, ids1] = values.to(value_mat.dtype)
+        return value_mat
 
-    def initialize_weights(self):
-        pass
+    def set_zero_weight(self):
+        """Initialize first index to be a zero vector"""
+        for embedding in self.embedding_ls:
+            embedding.weight.data[0] = torch.zeros(embedding.weight.data[0].shape)
+
+    
     
