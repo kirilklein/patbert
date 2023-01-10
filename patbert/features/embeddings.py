@@ -140,11 +140,11 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
             return string.ascii_uppercase.index(alphanumeric) + 10
 
 
+
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, embedding_dim, num_levels, kappa=2):
+    def __init__(self, embedding_dim, num_levels=5, kappa=2):
         self.embedding_dim = embedding_dim
         self.sks = medical.SKSVocabConstructor()
-        #super().__init__(vocab, top_lvl_vocab, token2top_lvl, embedding_dim, kappa)
         self.vocabs = self.sks()
         self.num_levels = num_levels
 
@@ -159,11 +159,12 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
             arr_ls.append(arr) 
         # concatenate arr_ls to get 3d tensor
         embedding_mat = torch.stack(arr_ls) # TODO: multiply by value
-        level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa)
+        # shorter vectors at lower levels of hierarchy
+        level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa) 
         embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1)*embedding_mat
-        #1/torch.arange(1,6)
         return embedding_mat
         # return self.embedding()
+
     def initialize_static_embeddings(self):
         embedding_ls = []
         for vocab in self.vocabs:
@@ -182,70 +183,5 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         return id_arr_ls
 
     def initialize_weights(self):
-        initial_weights = torch.zeros(self.num_embeddings, self.embedding_dim)
-        for token, index in self.vocab.items():
-            initial_weights[int(index), :] = self.get_embedding(token)
-        return initial_weights
-    
-    def get_embedding(self, token, values=None):
-        """The embedding space will be divided in special tokens, birthyear, birthmonth, lab tests, icd, atc at the highest level"""
-        if token in  ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>']:
-            return self.top_lvl_embedding(self.top_lvl_vocab[token])
-        elif token.startswith('BIRTHYEAR'):
-            emb = self.top_lvl_embedding(self.top_lvl_vocab['<BIRTHYEAR>'])
-            emb += self.birthdate_embedding(token.split('_')[1])/(2*self.kappa)
-            return emb
-        elif token.startswith('BIRTHMONTH'):
-            emb = self.top_lvl_embedding(self.top_lvl_vocab['<BIRTHMONTH>'])
-            emb += self.birthdate_embedding(token.split('_')[1])/(2*self.kappa)
-            return emb
-        elif token.startswith('D'):
-            return self.icd_embedding(token)
-        elif token.startswith('M'):
-            return self.atc_embedding(token)
-        elif token.startswith('L'):
-            emb = self.top_lvl_embedding(self.top_lvl_vocab['L'])
-            emb += self.lab_test_embedding(self.lab_test_vocab[token])/(2*self.kappa) # TODO: maybe we need to adjust for future lab tests
-            return emb
-        else:
-            return self.top_lvl_embedding(self.top_lvl_vocab['<UNK>'])
-    
-
-    def get_lab_test_vocab(self):
-        ls = [x for x in self.vocab.keys() if x.startswith('L')]
-        return {x: i for i, x in enumerate(ls)}
-
-    def icd_embedding(self, token):
-        emb = self.top_lvl_embedding(self.top_lvl_vocab['D'])
-        emb += self.icd_atc_topic_embedding(medical.ICD_topic(token[1:]))/(2**self.kappa)
-        if len(token) >= 4:
-            emb += self.icd_atc_category_embedding(self.category2idx(token[1:]))/(3**self.kappa)
-        else: return emb
-        if len(token) >= 5:
-            for i, alphanumeric in enumerate(token[4:]):
-                emb += self.icd_atc_subcategory_embedding(self.alphanumeric2idx(alphanumeric))/((4+i)**self.kappa)
-        return emb
-    
-    def atc_embedding(self, token):
-        """The embedding is a sum of vectors which are decreasing in length with every level of the hierarchy.
-        We start by modality (M), then topic e.g. A, B, C..., then category A01, A02,... , then every additional alphanumeric symbol is a step down the hierarchy."""
-        emb = self.top_lvl_embedding(self.top_lvl_vocab['M'])
-        emb += self.icd_atc_topic_embedding(medical.ATC_topic(token[1:]))/(2**self.kappa)
-        if len(token) >= 4:
-            emb += self.icd_atc_category_embedding(self.category2idx(token[1:]))/(3**self.kappa)
-        else: return emb
-        if len(token) >= 5:
-            for i, alphanumeric in enumerate(token[4:]):
-                emb += self.icd_atc_subcategory_embedding(self.alphanumeric2idx(alphanumeric))/((4+i)**self.kappa)
-        return emb
-    
-    def category2idx(self, category):
-        return string.ascii_uppercase.index(category[0])*100 + int(category[1:3])
-
-    def alphanumeric2idx(self, alphanumeric):
-        if alphanumeric.isnumeric():
-            return int(alphanumeric)
-        else:
-            return string.ascii_uppercase.index(alphanumeric) + 10
-    
+        pass
     
