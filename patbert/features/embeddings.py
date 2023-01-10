@@ -141,40 +141,43 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, embedding_dim, kappa=2):
+    def __init__(self, embedding_dim, num_levels, kappa=2):
         self.embedding_dim = embedding_dim
         self.sks = medical.SKSVocabConstructor()
         #super().__init__(vocab, top_lvl_vocab, token2top_lvl, embedding_dim, kappa)
-        
-    # def initialize_static_embeddings(self):
-    #     self.top_lvl_embedding = Embedding(len(self.top_lvl_vocab), self.embedding_dim)
-
-    #     self.birthdate_embedding = Embedding(self.num_birthyears, self.embedding_dim, _weight=torch.randn()) # number of birthmonths is smaller and so we can reuse the same embedding
-    #     self.lab_test_embedding = Embedding(self.num_lab_tests+1, self.embedding_dim) # one for rare lab tests
-
-    #     self.icd_atc_topic_embedding = Embedding(22, self.embedding_dim) # we add one topic for rare icd, atc contains 14 topics
-    #     self.icd_atc_category_embedding = Embedding(len(string.ascii_uppercase)*10*10, self.embedding_dim) # this will cover all possible categories
-    #     # TODO: split by subtopics
-    #     self.icd_atc_subcategory_embedding = Embedding(len(string.ascii_uppercase)+10, self.embedding_dim) # all subcategories can be described by adding additional alphanumeric symbols
-       
-    #     self.top_lvl_embedding.weight.requires_grad = False
-    #     self.birthdate_embedding .weight.requires_grad = False
-    #     self.lab_test_embedding.weight.requires_grad = False
-    #     self.icd_atc_category_embedding.weight.requires_grad = False
-    #     self.icd_atc_topic_embedding.weight.requires_grad = False
-    #     self.icd_atc_subcategory_embedding.weight.requires_grad = False
-    #     
+        self.vocabs = self.sks()
+        self.num_levels = num_levels
 
     def __call__(self, codes, values):
-        id_arr_ls = self.get_indeces_from_codes(codes)
+        """Outputs a tensor of shape levels x len x emb_dim"""
+        id_arr_ls = self.get_ids_from_codes(codes)
+        self.embedding_ls = self.initialize_static_embeddings()
+        self.set_to_static()
+        arr_ls = []
+        for id_arr, embedding in zip(id_arr_ls, self.embedding_ls):
+            arr = embedding(torch.LongTensor(id_arr))            
+            arr_ls.append(arr) 
+        # concatenate arr_ls to get 3d tensor
+        embedding_mat = torch.stack(arr_ls) # TODO: multiply by value
+        level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa)
+        embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1)*embedding_mat
+        #1/torch.arange(1,6)
+        return embedding_mat
         # return self.embedding()
-        
+    def initialize_static_embeddings(self):
+        embedding_ls = []
+        for vocab in self.vocabs:
+            embedding_ls.append(Embedding(len(vocab), self.embedding_dim))
+        return embedding_ls
+
+    def set_to_static(self):
+        for embedding in self.embedding_ls:
+            embedding.weight.requires_grad = False
 
     def get_ids_from_codes(self, codes):
-        vocabs = self.sks()
         id_arr_ls = []
         codes = np.array(codes, dtype='str')
-        for vocab in vocabs:
+        for vocab in self.vocabs:
             id_arr_ls.append(np.vectorize(lambda x: vocab.get(x, 0))(codes))
         return id_arr_ls
 

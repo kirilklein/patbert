@@ -88,9 +88,9 @@ class SKSVocabConstructor():
         return self.get_codes_type('uly')
     def get_studies(self):
         return self.get_codes_type('und')
-    def get_birthmonth(self):
+    def get_birthmonth(self): # needs to be time2vec later
         return ['<BIRTHMONTH>'+ str(i) for i in range(1,13)]
-    def get_birthyear(self):
+    def get_birthyear(self): # needs to be time2vec later
         return ['<BIRTHYEAR>' + str(i) for i in range(1900,2022)]
 
     def construct_vocab_dic(self, level):
