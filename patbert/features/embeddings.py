@@ -148,6 +148,7 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         """
         kappa: exponent to make vectors shorter with each hierarchy level
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
+        # TODO: make fully trainable scaling
         self.embedding_dim = embedding_dim
         self.sks = medical.SKSVocabConstructor(num_levels=num_levels)
         self.vocabs = self.sks()

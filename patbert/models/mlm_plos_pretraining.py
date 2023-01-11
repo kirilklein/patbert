@@ -27,11 +27,13 @@ def main(
     args = locals()
     typer.echo(f"Arguments: {args}")
 
-    data = torch.load(data_file)
+    data = torch.load(data_file) # list of dicts
+    
     if isinstance(max_num_seg, type(None)):
         max_num_seg = int(np.max([max(segs) for segs in data['segments']])) + 1 # +1 for padding
-
-    data = pd.DataFrame(data) 
+    print(data)
+    #data = pd.DataFrame(data)
+    
     vocab = torch.load(vocab_file)
     with open(config_file) as f:
             config_dic = json.load(f)

@@ -241,6 +241,7 @@ class Attention(Encoder):
             # get embeddings
             embedding_output = self.embeddings(batch['codes'], batch['segments'])
             # process
+            # TODO: Use output vectors to compute loss
             outputs = self.model(inputs_embeds=embedding_output,   # type: ignore
                         attention_mask=batch['attention_mask'],  
                         labels=batch['labels'],
