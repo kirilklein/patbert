@@ -6,21 +6,25 @@ import torch
 class Embedding_Tester():
     def __init__(self, embedding_dim=10) -> None:
         self.static_embedding = embeddings.StaticHierarchicalEmbedding(embedding_dim)
+        self.embedding_dim = embedding_dim
         sks = medical.SKSVocabConstructor()
         icd = sks.get_icd()
         atc = sks.get_atc()
         # If you want to change codes, append to this list
         self.test_codes  = [icd[1000], atc[2000], icd[300], atc[2000][:-2], 
             '<BIRTHYEAR>1950', '<BIRTHMONTH>4', '<CLS>']
-        self.mat = self.static_embedding(self.test_codes, [])
+        self.test_values = torch.randn(len(self.test_codes))
+        self.mat = self.static_embedding(self.test_codes, self.test_values)
     def test_embedding_length(self):
         # TODO: we will need to provide values
         avg_lengths = torch.mean(torch.norm(self.mat, dim=2), dim=1)
         is_increasing = torch.all(torch.gt(avg_lengths[:-1], avg_lengths[1:]))
         assert is_increasing
+    def test_embedding_shape(self):
+        assert self.mat.shape[1] == len(self.test_codes), 'First dimension should be number of codes'
+        assert self.mat.shape[2] == self.embedding_dim, 'Second dimension should be embedding dimension'
     def test_ids(self):
         ids_ls = self.static_embedding.get_ids_from_codes(self.test_codes)
-        print(ids_ls)
         assert len(self.test_codes)==len(ids_ls[0]) == self.mat.shape[1], 'First dimension should be number of codes'
         assert ids_ls[0][0]==ids_ls[0][2], "ICD codes should have same id at level 0"
         for i in range(1, 5):
