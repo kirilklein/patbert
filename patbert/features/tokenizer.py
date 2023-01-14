@@ -1,12 +1,10 @@
 import torch
 import typer
 import pickle as pkl
-from os.path import join, split, dirname, realpath
+from os.path import join, dirname, realpath
 from collections import defaultdict
 
 
-
-# TODO: check for bugs
 class EHRTokenizer():
     def __init__(self, vocabulary=None, max_len=None):
         """Add description"""
@@ -22,7 +20,6 @@ class EHRTokenizer():
             self.vocabulary = vocabulary
         self.vocabs = [self.vocabulary]
         self.max_len = max_len
-        self.len_background = len_background
 
     def __call__(self, seqs):
         return self.batch_encode(seqs)
@@ -36,15 +33,12 @@ class EHRTokenizer():
     def encode_seq(self, seq):
         self.enc_seq = defaultdict(list) # we need a dictionary of lists
         self.seq = seq
-        # it is easier to add the CLS token when concatenating with background sentence
-        # since we cut off the sequence at the beginning, we will add the sep token later
         first_visit = 1
         abs_pos_0 = seq['abs_pos'][0]
         last_abs_pos = 0
 
         # skip pid, birthdate and sex
         for i in range(len(seq['codes'])):
-        #for (code, age, los, visit, abs_pos, value) in zip(*list(seq.values())[3:]): 
             if seq['visits'][i]>first_visit:
                 self.enc_seq['codes'].append('<SEP>')
                 self.enc_seq['idx'].append(self.vocabulary['<SEP>'])
@@ -57,15 +51,10 @@ class EHRTokenizer():
                 first_visit = seq['visits'][i]
                 if len(seq['abs_pos'])>(i+1):
                     abs_pos_0 = seq['abs_pos'][i+1] # abs pos of next visit
-            # we will add the background sentence later, as it requires additional embeddings
             for key in ['visits', 'codes', 'ages', 'abs_pos', 'values']:
                 self.append_token(key, i)
-            # enc_seq['codes'].append(seq['codes'][i])
             self.enc_seq['los'].append(0)
             self.enc_seq['idx'].append(self.encode(seq['codes'][i]))
-            # enc_seq['visits'].append(seq['visits'][i])
-            # enc_seq['ages'].append(seq['ages'][i]), enc_seq['los'].append(seq['los'][i]), 
-            # enc_seq['abs_pos'].append(seq['abs_pos'][i]), enc_seq['values'].append(seq['values'][i])
             if i==len(seq['codes'])-1:
                 self.enc_seq['los'].append(seq['abs_pos'][i]-last_abs_pos)
         self.append_last_sep_token()
@@ -120,7 +109,7 @@ class EHRTokenizer():
 
     def truncate(self):
         if not isinstance(self.max_len, type(None)):
-            max_len = self.max_len - self.len_background # background sentence + CLS token
+            max_len = self.max_len  # background sentence + CLS token
             if len(self.enc_seq['idx'])>max_len:
                 if self.enc_seq['codes'][-max_len] == '<SEP>':
                     # we don't want to start a sequence with SEP
@@ -158,7 +147,7 @@ def main(
     with open(join(data_dir, 'raw' , input_data + '.pkl'), 'rb')as f:
         data = pkl.load(f)
 
-    Tokenizer = HierarchicalTokenizer(max_len=max_len)
+    Tokenizer = EHRTokenizer(max_len=max_len)
     tokenized_data_dic = Tokenizer.batch_encode(data)
     if isinstance(vocab_save_path, type(None)):
         vocab_save_path = join(join(data_dir, 'vocabs', input_data + '.pt'))

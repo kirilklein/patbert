@@ -7,12 +7,12 @@ from os.path import join, dirname, realpath
 base_dir = dirname(dirname(dirname(realpath(__file__))))
 data_dir = join(base_dir, 'data')
 
-def test_tokenizer(max_len=20, len_background=4):
+def test_tokenizer(max_len=20):
     assert os.path.exists(join(data_dir, 'raw', 'synthetic.pkl')), "Generate example data first" 
     with open(join(data_dir, 'raw', 'synthetic.pkl'), 'rb') as f:
         data = pickle.load(f)
     
-    Tokenizer = tokenizer.HierarchicalTokenizer(max_len=max_len)
+    Tokenizer = tokenizer.EHRTokenizer(max_len=max_len)
     tok_data = Tokenizer.batch_encode(data)
     assert len(data)==len(tok_data), "Number of patients should be the same"
     for seq in tok_data:
