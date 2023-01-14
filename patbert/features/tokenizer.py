@@ -4,61 +4,12 @@ import pickle as pkl
 from os.path import join, split, dirname, realpath
 from collections import defaultdict
 
-class EHRTokenizer():
-    def __init__(self, vocabulary=None):
-        if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                    '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
-            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
-        else:
-            self.vocabulary = vocabulary
-
-    def __call__(self, seq):
-        return self.batch_encode(seq)
-
-    def encode(self, seq):
-        for code in seq:
-            if code not in self.vocabulary:
-                self.vocabulary[code] = len(self.vocabulary)
-        return [self.vocabulary[code] for code in seq]
-
-    def batch_encode(self, seqs, max_len=None):
-        if isinstance(max_len, type(None)):
-            max_len = max([len(seq) for seq in seqs])
-        pat_ids = [seq[0] for seq in seqs]
-        los_seqs = [seq[1] for seq in seqs]
-        code_seqs = [seq[2] for seq in seqs] # icd code_ls
-        visit_seqs = [seq[3] for seq in seqs]
-        if isinstance(max_len, type(None)):
-            max_len = max([len(seq) for seq in code_seqs])    
-        output_code_seqs = []
-        output_visit_seqs = []
-        # let's do the padding later
-        for code_seq, visit_seq in zip(code_seqs, visit_seqs):
-            # truncation
-            if len(code_seq)>max_len:
-                code_seq = code_seq[:max_len]
-                visit_seq = visit_seq[:max_len]
-            # Tokenizing
-            tokenized_code_seq = self.encode(code_seq)
-            output_code_seqs.append(tokenized_code_seq)
-            output_visit_seqs.append(visit_seq)
-        tokenized_data_dic = {'pats':pat_ids, 'los':los_seqs, 'code_ls':output_code_seqs, 
-                            'segments':output_visit_seqs}
-        return tokenized_data_dic
-
-    def save_vocab(self, dest):
-        print(f"Writing vocab to {dest}")
-        torch.save(self.vocabulary, dest)
-    
-
 
 
 # TODO: check for bugs
-class HierarchicalTokenizer():
-    def __init__(self, vocabulary=None, max_len=None, len_background=5):
-        """Background sentence is added later, so we need to know how many tokens it will have
-        usually 5 (CLS, sex, birthyear, birthmonth, SEP)"""
+class EHRTokenizer():
+    def __init__(self, vocabulary=None, max_len=None):
+        """Add description"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
                 '<SEX>0', '<SEX>1',]
@@ -133,6 +84,8 @@ class HierarchicalTokenizer():
         self.enc_seq['idx'].insert(0, self.vocabulary[f'<BIRTHYEAR>{birthdate.year}'])
         self.enc_seq['codes'].insert(0, f'<SEX>{sex}')
         self.enc_seq['idx'].insert(0, self.vocabulary[f'<SEX>{sex}'])
+        self.enc_seq['codes'].insert(0, '<CLS>')
+        self.enc_seq['idx'].insert(0, self.vocabulary['<CLS>'])
         for key in ['visits', 'ages', 'abs_pos', 'los']:
             self.insert_values(3, key, 0)
         self.insert_values(3, 'values', 1)
