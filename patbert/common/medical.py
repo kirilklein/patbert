@@ -273,6 +273,7 @@ class SKSVocabConstructor():
                 for j in range(10):
                     temp_vocab[str(i)+str(j)] = len(temp_vocab)
         return temp_vocab
+        
     @staticmethod
     def alphanumeric_vocab(temp_vocab):
         for i in range(10):
@@ -310,6 +311,7 @@ class SKSVocabConstructor():
             return self.ICD_topic(code)
         else:
             print(f"Code type starting with {code[0]} not implemented yet")
+
     @staticmethod
     def ATC_topic(code):
         assert code[0] == 'M', f"ATC code must start with 'M, code: {code}'"

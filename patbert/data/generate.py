@@ -4,6 +4,9 @@ import string
 import typer
 from datetime import datetime
 
+from os.path import dirname, realpath, join
+# get path of script
+
 
 class DataGenerator(super):
     def __init__(self, num_patients, min_num_visits, max_num_visits, 
@@ -149,9 +152,9 @@ class DataGenerator(super):
             yield self.generate_patient_history('p_'+str(pid))
 
 
-def main(num_patients : int = typer.Argument(...), 
-        save_name: str = typer.Argument(..., 
-        help="name of the file to save the data to, should end with .pkl"),
+def main(save_name: str = typer.Option('test_data', 
+        help="name of the file to save the data to, will be saved as pkl"),
+        num_patients : int = typer.Option(100), 
         min_num_visits: int = typer.Option(2),
         max_num_visits: int = typer.Option(10),
         min_num_codes_per_visit: int = typer.Option(1),
@@ -165,7 +168,10 @@ def main(num_patients : int = typer.Argument(...),
     generator = DataGenerator(num_patients, min_num_visits, max_num_visits, 
         min_num_codes_per_visit, max_num_codes_per_visit, 
         min_los, max_los, num_atc_codes, num_icd_codes, num_lab_tests, seed=seed)
-    with open(save_name, 'wb') as f:
+
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
+    save_path = join(base_dir, 'data', 'raw' ,save_name + '.pkl')
+    with open(save_path, 'wb') as f:
         pkl.dump([hist for hist in generator.simulate_data()], f)
     #print([hist for hist in generator.simulate_data()])
 if __name__ == '__main__':

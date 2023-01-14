@@ -5,14 +5,12 @@ import torch
 import typer
 import json
 from torch.utils.data import random_split
-import pandas as pd
 from os.path import join
 import numpy as np
 
 
 def main(
     data_file : str = typer.Argument(..., help="Tokenized data"),
-    vocab_file : str = typer.Argument(..., help=".pt vocab dic"),
     model_dir : str = typer.Argument(..., help="Directory to save model"),
     epochs : int = typer.Argument(..., help="Number of epochs"),
     batch_size : int = typer.Option(32, help="Batch size"),
@@ -24,9 +22,11 @@ def main(
     checkpoint_freq : int = typer.Option(5, help="Frequency of checkpoints in epochs"),
     from_checkpoint : bool = typer.Option(False, help="Load model from checkpoint")
     ):
+    
     args = locals()
+    print(args)
     typer.echo(f"Arguments: {args}")
-
+    assert False
     data = torch.load(data_file) # list of dicts
     
     if isinstance(max_num_seg, type(None)):

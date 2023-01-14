@@ -72,7 +72,6 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
         self.icd_atc_topic_embedding.weight.requires_grad = False
         self.icd_atc_subcategory_embedding.weight.requires_grad = False
 
-
     def initialize_weights(self):
         initial_weights = torch.zeros(self.num_embeddings, self.embedding_dim)
         for token, index in self.vocab.items():
@@ -102,7 +101,6 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
         else:
             return self.top_lvl_embedding(self.top_lvl_vocab['<UNK>'])
     
-
     def get_lab_test_vocab(self):
         ls = [x for x in self.vocab.keys() if x.startswith('L')]
         return {x: i for i, x in enumerate(ls)}
@@ -144,7 +142,7 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
     def __init__(self, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
-            alpha_trainable:bool=False, kappa_trainable:bool=False):
+            alpha_trainable:bool=False, kappa_trainable:bool=False, fully_trainable_scaling=False):
         """
         kappa: exponent to make vectors shorter with each hierarchy level
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
@@ -153,8 +151,13 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         self.sks = medical.SKSVocabConstructor(num_levels=num_levels)
         self.vocabs = self.sks()
         self.num_levels = num_levels
-        self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
-        self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
+        self.fully_trainable_scaling = fully_trainable_scaling
+        if self.fully_trainable_scaling:
+            self.kappa = kappa
+            self.alpha = alpha
+        else:
+            self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
+            self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
 
     def __call__(self, codes, values):
         """Outputs a tensor of shape levels x len x emb_dim"""
@@ -184,6 +187,8 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         """Scale embedding_mat to have decreasing length with each level of hierarchy"""
         # shorter vectors at lower levels of hierarchy
         level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa) 
+        if self.fully_trainable_scaling:
+            level_mult.requires_grad = True
         self.embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1)*self.embedding_mat
         
     def get_embedding_mat(self):
