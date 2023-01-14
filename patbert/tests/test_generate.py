@@ -16,10 +16,10 @@ def test_generate(num_patients=10,
     )
     data = [pat for pat in generator.simulate_data()]
     assert len(data) == num_patients
-    assert np.min(np.array([min(d['los']) for d in data])) >= min_los
-    assert np.max(np.array([max(d['los']) for d in data])) <= max_los
+    #assert np.min(np.array([min(d['los']) for d in data])) >= min_los
+    #assert np.max(np.array([max(d['los']) for d in data])) <= max_los
     assert np.min(np.array([min(d['visits']) for d in data])) <= min_num_visits
     assert np.max(np.array([max(d['visits']) for d in data])) <= max_num_visits
     for pat in data:
-        assert len(pat['codes']) == len(pat['visits']) == len(pat['ages']) == len(pat['los'])
+        assert len(pat['codes']) == len(pat['visits']) == len(pat['ages'])
 

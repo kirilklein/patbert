@@ -65,7 +65,7 @@ class DataGenerator(super):
             'sex':self.generate_sex(),
             'codes':codes,
             'ages':ages,
-            'los':los,
+            #'los':los,
             'visits':visit_nums,
             'abs_pos':absolute_position,
             'values':values
@@ -152,7 +152,7 @@ class DataGenerator(super):
             yield self.generate_patient_history('p_'+str(pid))
 
 
-def main(save_name: str = typer.Option('test_data', 
+def main(save_name: str = typer.Option('synthetic', 
         help="name of the file to save the data to, will be saved as pkl"),
         num_patients : int = typer.Option(100), 
         min_num_visits: int = typer.Option(2),

@@ -1,13 +1,14 @@
 import torch
 import typer
 import pickle as pkl
-from os.path import join, split
-
+from os.path import join, split, dirname, realpath
+from collections import defaultdict
 
 class EHRTokenizer():
     def __init__(self, vocabulary=None):
         if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                    '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
@@ -59,15 +60,14 @@ class HierarchicalTokenizer():
         """Background sentence is added later, so we need to know how many tokens it will have
         usually 5 (CLS, sex, birthyear, birthmonth, SEP)"""
         if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+            self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
+                '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
         self.vocabs = [self.vocabulary]
-        self.top_lvl_vocab = self.vocabulary.copy()
         self.max_len = max_len
         self.len_background = len_background
-        self.token2top_lvl = {}
 
     def __call__(self, seqs):
         return self.batch_encode(seqs)
@@ -75,151 +75,118 @@ class HierarchicalTokenizer():
     def batch_encode(self, seqs):
         seqs_new = []
         for seq in seqs:
-            idx_ls, top_level_idx_ls = [], []
-            code_ls, age_ls, los_ls, visit_ls, abs_pos_ls, mod_ls, value_ls = [[] for _ in range(7)]
-            # it is easier to add the CLS token when concatenating with background sentence
-            # since we cut off the sequence at the beginning, we will add the sep token later
-           
-            first_visit = 1
-            
-            for (code, age, los, visit, abs_pos, value) in zip(*list(seq.values())[3:]):
-                if visit>first_visit:
-                    idx_ls.append(self.vocabulary['<SEP>']), top_level_idx_ls.append(self.top_lvl_vocab['<SEP>'])
-                    code_ls.append('<SEP>'), mod_ls.append('<SEP>')
-                    visit_ls.append(first_visit)
-                    age_ls.append(age_ls[-1]), los_ls.append(los_ls[-1]), abs_pos_ls.append(abs_pos_ls[-1]) 
-                    value_ls.append(1)
-                    first_visit = visit        
-                # we will add the background sentence later, as it requires additional embeddings
-                code_ls.append(code)
-                idx_ls.append(self.encode(code)), top_level_idx_ls.append(self.encode_type(code))
-                visit_ls.append(visit)
-                age_ls.append(age), los_ls.append(los), abs_pos_ls.append(abs_pos), value_ls.append(value)
-            
-            seq['codes'] = code_ls
-            seq['idx'] = idx_ls
-            seq['top_lvl_idx'] = top_level_idx_ls
-            seq['ages'] = age_ls
-            seq['los'] = los_ls 
-            seq['visits'] = visit_ls 
-            seq['abs_pos'] = abs_pos_ls
-            seq['values'] = value_ls
-            seq = self.append_last_sep_token(seq)
-            seq = self.truncate(seq)
-            seq = self.insert_first_sep_token(seq)
-            seqs_new.append(seq)
+            seqs_new.append(self.encode_seq(seq))
         return seqs_new
     
-    def insert_first_sep_token(self, seq):
+    def encode_seq(self, seq):
+        self.enc_seq = defaultdict(list)
+        self.seq = seq
+        # it is easier to add the CLS token when concatenating with background sentence
+        # since we cut off the sequence at the beginning, we will add the sep token later
+        first_visit = 1
+        abs_pos_0 = seq['abs_pos'][0]
+        last_abs_pos = 0
+        # skip pid, birthdate and sex
+        for i in range(len(seq['codes'])):
+        #for (code, age, los, visit, abs_pos, value) in zip(*list(seq.values())[3:]): 
+            if seq['visits'][i]>first_visit:
+                self.enc_seq['codes'].append('<SEP>')
+                self.enc_seq['idx'].append(self.vocabulary['<SEP>'])
+                self.enc_seq['visits'].append(first_visit)
+                self.append_previous('ages')
+                self.append_previous('abs_pos')
+                self.enc_seq['los'].append(seq['abs_pos'][i-1]-abs_pos_0) # visit length in days         
+                last_abs_pos = seq['abs_pos'][i]
+                self.enc_seq['values'].append(1)
+                first_visit = seq['visits'][i]
+                if len(seq['abs_pos'])>(i+1):
+                    abs_pos_0 = seq['abs_pos'][i+1] # abs pos of next visit
+            # we will add the background sentence later, as it requires additional embeddings
+            for key in ['visits', 'codes', 'ages', 'abs_pos', 'values']:
+                self.append_token(key, i)
+            # enc_seq['codes'].append(seq['codes'][i])
+            self.enc_seq['los'].append(0)
+            self.enc_seq['idx'].append(self.encode(seq['codes'][i]))
+            # enc_seq['visits'].append(seq['visits'][i])
+            # enc_seq['ages'].append(seq['ages'][i]), enc_seq['los'].append(seq['los'][i]), 
+            # enc_seq['abs_pos'].append(seq['abs_pos'][i]), enc_seq['values'].append(seq['values'][i])
+            if i==len(seq['codes'])-1:
+                self.enc_seq['los'].append(seq['abs_pos'][i]-last_abs_pos)
+        self.append_last_sep_token()
+        self.truncate()
+        self.insert_first_sep_token()
+        return dict(self.enc_seq)
+
+    def append_token(self, key, idx):
+        self.enc_seq[key].append(self.seq[key][idx])
+
+    def append_previous(self,key):
+        self.enc_seq[key].append(self.enc_seq[key][-1])
+
+    def insert_first_sep_token(self):
         """We insert zeros, sep and 1s, we might try a different value which will be mapped onto a zero vector"""
-        seq['codes'].insert(0, '<SEP>')
-        seq['idx'].insert(0, self.vocabulary['<SEP>'])
-        seq['top_lvl_idx'].insert(0, self.vocabulary['<SEP>'])
-        seq['visits'].insert(0, 0)
-        seq['abs_pos'].insert(0, 0)
-        seq['ages'].insert(0, 0)
-        seq['values'].insert(0, 1)
-        seq['los'].insert(0, 0)
-        return seq
+        self.enc_seq['codes'].insert(0, '<SEP>')
+        self.enc_seq['idx'].insert(0, self.vocabulary['<SEP>'])
+        self.enc_seq['values'].insert(0, 1)
+        for key in ['visits', 'ages', 'abs_pos', 'los']:
+            self.enc_seq[key].insert(0, 0)        
 
-    def append_last_sep_token(self, seq):
-        seq['codes'].append('<SEP>')
-        seq['idx'].append(self.vocabulary['<SEP>'])
-        seq['top_lvl_idx'].append(self.vocabulary['<SEP>'])
-        seq['visits'].append(seq['visits'][-1])
-        seq['abs_pos'].append(seq['abs_pos'][-1])
-        seq['ages'].append(seq['ages'][-1])
-        seq['values'].append(1)
-        seq['los'].append(seq['los'][-1])
-        return seq
+    def append_last_sep_token(self):
+        self.enc_seq['codes'].append('<SEP>')
+        self.enc_seq['idx'].append(self.vocabulary['<SEP>'])
+        for key in ['visits', 'abs_pos', 'ages']:
+            self.append_previous(key)
+        self.enc_seq['values'].append(1)        
 
-    def truncate(self, seq):
+    def truncate(self):
         if not isinstance(self.max_len, type(None)):
             max_len = self.max_len - self.len_background # background sentence + CLS token
-            if len(seq['idx'])>max_len:
-                if seq['codes'][-max_len] == '<SEP>':
+            if len(self.enc_seq['idx'])>max_len:
+                if self.enc_seq['codes'][-max_len] == '<SEP>':
                     # we don't want to start a sequence with SEP
                     max_len = max_len - 1
-                seq['codes'] = seq['codes'][-max_len:]
-                seq['idx'] = seq['idx'][-max_len:]
-                seq['top_lvl_idx'] = seq['top_lvl_idx'][-max_len:]
-                seq['ages'] = seq['ages'][-max_len:]
-                seq['los'] = seq['los'][-max_len:]
-                seq['visits'] = seq['visits'][-max_len:]
-                seq['abs_pos'] = seq['abs_pos'][-max_len:]
-                seq['values'] = seq['values'][-max_len:]
-        return seq
-
+                for key in ['codes', 'idx', 'values', 'visits', 'ages', 'abs_pos', 'los']:
+                    self.truncate_key(key, max_len)
+    
+    def truncate_key(self, key, max_len):
+        """Truncate one list inside seq"""
+        self.seq[key] = self.seq[key][-max_len:]
+        
     def encode(self, code):
         if code not in self.vocabulary:
             self.vocabulary[code] = len(self.vocabulary)
         return self.vocabulary[code]
-        
-    def encode_type(self, code):
-        """Encode top level (first level in hierarchy) token for a given code and modality"""
-        if code[0] in "MDL": # M: ATC, D: ICD, L: LAB
-            type = code[0]
-        elif code.startswith('BIRTHYEAR'):
-            type = 'BIRTHYEAR'
-        elif code.startswith('BIRTHMONTH'):
-            type = 'BIRTHMONTH'
-        else:
-            if code not in self.special_tokens:
-                Warning(f"Type of code {code} not recognized, set to unknown (<UNK>)")
-                type = '<UNK>'
-            else:
-                type = code
-        if type not in self.vocabs[0]:
-            self.vocabs[0][type] = len(self.vocabs[0])
-        return self.vocabs
-
     # add special tokens
     # check whether length is within limits
     # add background sentence
     def save_vocab(self, dest):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
-        torch.save(self.top_lvl_vocab, dest.replace('.pt', '_top_lvl.pt'))
-        torch.save(self.token2top_lvl, dest.replace('.pt', '_token2top_lvl.pt'))
-        torch.save(self.special_tokens, dest.replace('.pt', '_special_tokens.pt'))
 
-class HierarchicalTokenizerStatic(HierarchicalTokenizer):
-    # init
-    def __init__(self, vocab=None, max_len=None):
-        #super init
-        super().__init__(vocab, max_len=max_len)
-        self.vocabs = []
-        self.vocabs.append(self.top_lvl_vocab)
-    def construct_vocabs(self):
-        self.vocab[1]  = self.construct_vocab(lvl=1)
-    def construct_vocab(self, lvl):
-        vocab = {}
-        for code in self.codes:
-            if code[0] in "MDL":
-                pass
+
 
 
 def main(
-    input_data_path: str = typer.Argument(..., 
-        help="data as generated by generate.py, must end with .pkl"),
+    input_data: str = typer.Argument(..., 
+        help="data as generated by generate.py"),
     vocab_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
     out_data_path: str = typer.Option(None, help="Path to save tokenized data, must end with .pt"),
     max_len: int = 
         typer.Option(None, help="maximum number of tokens to keep for each visit"),
     ):
 
-    with open(input_data_path, 'rb') as f:
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
+    data_dir = join(base_dir, 'data')
+    with open(join(data_dir, 'raw' , input_data + '.pkl'), 'rb')as f:
         data = pkl.load(f)
 
     Tokenizer = HierarchicalTokenizer(max_len=max_len)
     tokenized_data_dic = Tokenizer.batch_encode(data)
     if isinstance(vocab_save_path, type(None)):
-        data_dir = split(split(input_data_path)[0])[0]
-        vocab_save_path = join(join(data_dir, 'vocabs', split(input_data_path)[1].replace('.pkl', '.pt')))
-    Tokenizer.save_vocab(vocab_save_path)
+        vocab_save_path = join(join(data_dir, 'vocabs', input_data + '.pt'))
     if isinstance(out_data_path, type(None)):
-        data_dir = split(split(input_data_path)[0])[0]
-        out_data_path = join(join(data_dir, 'tokenized', split(input_data_path)[1].replace('.pkl', '.pt')))
+        out_data_path = join(join(data_dir, 'tokenized', input_data + '.pt'))
+    Tokenizer.save_vocab(vocab_save_path)
     print(f"Save tokenized data to {out_data_path}")
     torch.save(tokenized_data_dic, out_data_path)
     
