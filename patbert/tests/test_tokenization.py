@@ -18,4 +18,4 @@ def test_tokenizer(max_len=20, len_background=4):
     for seq in tok_data:
         assert len(seq['codes']) == len(seq['visits'])  == len(seq['idx'])\
              == len(seq['ages']) == len(seq['los']) == len(seq['abs_pos']) == len(seq['values']), "All lists should have the same length"
-        assert len(seq['codes']) <= max_len - len_background, "Sequence should be truncated"
+        assert len(seq['codes']) <= max_len, "Sequence should be truncated"

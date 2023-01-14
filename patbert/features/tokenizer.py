@@ -54,15 +54,19 @@ class EHRTokenizer():
 
 
 
-
+# TODO: check for bugs
 class HierarchicalTokenizer():
     def __init__(self, vocabulary=None, max_len=None, len_background=5):
         """Background sentence is added later, so we need to know how many tokens it will have
         usually 5 (CLS, sex, birthyear, birthmonth, SEP)"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+                '<SEX>0', '<SEX>1',]
             self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
+            for i in range(1900, 2022):
+                self.vocabulary[f'<BIRTHYEAR>{i}'] = len(self.vocabulary)
+            for i in range(1, 13):
+                self.vocabulary[f'<BIRTHMONTH>{i}'] = len(self.vocabulary)
         else:
             self.vocabulary = vocabulary
         self.vocabs = [self.vocabulary]
@@ -79,13 +83,14 @@ class HierarchicalTokenizer():
         return seqs_new
     
     def encode_seq(self, seq):
-        self.enc_seq = defaultdict(list)
+        self.enc_seq = defaultdict(list) # we need a dictionary of lists
         self.seq = seq
         # it is easier to add the CLS token when concatenating with background sentence
         # since we cut off the sequence at the beginning, we will add the sep token later
         first_visit = 1
         abs_pos_0 = seq['abs_pos'][0]
         last_abs_pos = 0
+
         # skip pid, birthdate and sex
         for i in range(len(seq['codes'])):
         #for (code, age, los, visit, abs_pos, value) in zip(*list(seq.values())[3:]): 
@@ -115,12 +120,34 @@ class HierarchicalTokenizer():
         self.append_last_sep_token()
         self.truncate()
         self.insert_first_sep_token()
+        self.construct_background_sentence()
         return dict(self.enc_seq)
 
+    def construct_background_sentence(self):
+        birthdate = self.seq['birthdate']
+        sex = self.seq['sex']
+    
+        self.enc_seq['codes'].insert(0, f'<BIRTHMONTH>{birthdate.month}')
+        self.enc_seq['idx'].insert(0, self.vocabulary[f'<BIRTHMONTH>{birthdate.month}'])
+        self.enc_seq['codes'].insert(0, f'<BIRTHYEAR>{birthdate.year}')
+        self.enc_seq['idx'].insert(0, self.vocabulary[f'<BIRTHYEAR>{birthdate.year}'])
+        self.enc_seq['codes'].insert(0, f'<SEX>{sex}')
+        self.enc_seq['idx'].insert(0, self.vocabulary[f'<SEX>{sex}'])
+        for key in ['visits', 'ages', 'abs_pos', 'los']:
+            self.insert_values(3, key, 0)
+        self.insert_values(3, 'values', 1)
+        
+    def insert_values(self, n, key, value=0):
+        """n: Number of values at start of sequence to insert"""
+        for _ in range(n):
+            self.enc_seq[key].insert(0, value)
+
     def append_token(self, key, idx):
+        """Get the token at the given index and append it to the enc_seq dictionary."""
         self.enc_seq[key].append(self.seq[key][idx])
 
     def append_previous(self,key):
+        """Append the previous token to the enc_seq dictionary."""
         self.enc_seq[key].append(self.enc_seq[key][-1])
 
     def insert_first_sep_token(self):
@@ -150,7 +177,7 @@ class HierarchicalTokenizer():
     
     def truncate_key(self, key, max_len):
         """Truncate one list inside seq"""
-        self.seq[key] = self.seq[key][-max_len:]
+        self.enc_seq[key] = self.enc_seq[key][-max_len:]
         
     def encode(self, code):
         if code not in self.vocabulary:
@@ -162,8 +189,6 @@ class HierarchicalTokenizer():
     def save_vocab(self, dest):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
-
-
 
 
 def main(
