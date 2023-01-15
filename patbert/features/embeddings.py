@@ -173,7 +173,7 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         return self.embedding_mat
 
     def initialize_static_embeddings(self):
-        embedding_ls = []
+        embedding_ls = [] # TODO: think about vectorizing
         for vocab in self.vocabs:
             embedding_ls.append(Embedding(len(vocab), self.embedding_dim))
         return embedding_ls
@@ -208,7 +208,7 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
             embedding.weight.requires_grad = False
 
     def get_ids_from_codes(self, codes):
-        id_arr_ls = []
+        id_arr_ls = [] # TODO: think about vectorizing
         codes = np.array(codes, dtype='str')
         for vocab in self.vocabs:
             id_arr_ls.append(np.vectorize(lambda x: vocab.get(x, 0))(codes))

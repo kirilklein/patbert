@@ -16,6 +16,7 @@ def test_tokenizer(max_len=20):
     tok_data = Tokenizer.batch_encode(data)
     assert len(data)==len(tok_data), "Number of patients should be the same"
     for seq in tok_data:
-        assert len(seq['codes']) == len(seq['visits'])  == len(seq['idx'])\
-             == len(seq['ages']) == len(seq['los']) == len(seq['abs_pos']) == len(seq['values']), "All lists should have the same length"
+        len_ = len(seq['codes'])
+        for key in ['visits', 'idx', 'ages', 'los', 'abs_pos', 'values']:
+            assert len_ == len(seq[key]), f"sequence {key} has a different length of {len(seq[key])}!={len_}"
         assert len(seq['codes']) <= max_len, "Sequence should be truncated"
