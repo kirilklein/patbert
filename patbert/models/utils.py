@@ -9,13 +9,13 @@ from tqdm import tqdm
 from transformers import BertConfig, BertForPreTraining, Trainer
 
 from patbert.common import common, pytorch
-from patbert.features.embeddings import StaticHierarchicalEmbedding
-
+from patbert.features.embeddings import StaticHierarchicalEmbedding, PositionalEmbedding
 
 class CustomPreTrainer(Trainer):
     def __init__(self, vocab, train_dataset, val_dataset, model, epochs, embeddings,
                 batch_size, model_dir, lr=5e-5, optimizer=torch.optim.AdamW, 
-                checkpoint_freq=5, from_checkpoint=False, config=None, args=None):
+                checkpoint_freq=5, from_checkpoint=False, config=None, args=None,
+                channels=['visits', 'abs_pos','ages']):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.model = model
@@ -28,8 +28,9 @@ class CustomPreTrainer(Trainer):
         self.from_checkpoint = from_checkpoint
         self.config = config
         if embeddings=='static':
-            self.embeddings = StaticHierarchicalEmbedding(vocab,
+            self.main_embeddings = StaticHierarchicalEmbedding(vocab,
                     embedding_dim=config.hidden_size)
+        self.positional_emb_ls = []
         #self.embeddings.weight.requires_grad = False # freeze embeddings
         self.args = args
     def __call__(self):

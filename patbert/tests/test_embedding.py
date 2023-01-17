@@ -10,6 +10,7 @@ class Embedding_Tester():
     def __init__(self, embedding_dim=10) -> None:
         self.init_test_codes()
         vocab = {k:i for i,k in enumerate(self.test_codes)}
+        self.vocab = vocab
         #_, vocab = common.load_data('synthetic')
         self.static_embedding = embeddings.StaticHierarchicalEmbedding(vocab, embedding_dim)
         self.embedding_dim = embedding_dim
@@ -34,6 +35,7 @@ class Embedding_Tester():
         first_zero = (ids_ls[:][1] != 0).sum()
         for i in range(first_zero-1):
             assert ids_ls[i][1]==ids_ls[i][3], "All indices until first zero have to be the same"
+    
     def init_test_codes(self):
         sks = medical.SKSVocabConstructor()
         icd = sks.get_icd()

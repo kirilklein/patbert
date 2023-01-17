@@ -59,8 +59,7 @@ def main(
                     generator=torch.Generator().manual_seed(42))
     
     trainer = utils.CustomPreTrainer(vocab, train_dataset, val_dataset, model, epochs,
-                embeddings, 
-                batch_size, model_dir, checkpoint_freq=checkpoint_freq, 
+                embeddings, batch_size, model_dir, checkpoint_freq=checkpoint_freq, 
                 from_checkpoint=from_checkpoint, config=config, args=args)
     trainer()
     trainer.save_model()

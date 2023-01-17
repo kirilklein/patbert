@@ -15,7 +15,7 @@ class MLM_PLOS_Dataset(Dataset):
         self.plos = plos
         self.init_pad_len(data, pad_len)
         self.mask_prob = mask_prob
-        self.init_nonspecial_codes()
+        self.init_nonspecial_ids()
         
     def __getitem__(self, index):
         """
@@ -56,41 +56,34 @@ class MLM_PLOS_Dataset(Dataset):
         else:
             self.pad_len = pad_len
 
-    def init_nonspecial_codes(self):
-        special_tokens = [tok for tok in self.vocab.keys() if tok.startswith('<')]
-        special_idxs = [self.vocab[token] for token in special_tokens]
-        self.nonspecial_codes = [k for k, v in self.vocab.items() if v not in special_idxs]
+    def init_nonspecial_ids(self):
+        """We use by default < as special sign for special tokens"""
+        self.nonspecial_ids = [v for k,v in self.vocab.items() if not k.startswith('<')]
         
     def seq_padding(self, seq, pad_token):
         """Pad a sequence to the given length."""
         return seq + (self.pad_len-len(seq)) * [pad_token]
 
-    def random_mask_ids(self, ids, seed=0, ):
+    def random_mask_ids(self, ids, seed=0):
         """mask code with 15% probability, 80% of the time replace with [MASK], 
             10% of the time replace with random token, 10% of the time keep original"""
         rng = default_rng(seed)
-        # masked_codes = codes.copy()
         masked_ids = ids.copy()
-        # TODO: this needs to be improved
         labels = len(ids) * [-100] 
-        
-        for i, code in enumerate(ids):
-            if code not in self.nonspecial_codes:
+        for i, id in enumerate(ids):
+            if id not in self.nonspecial_ids:
                 continue
             prob = rng.uniform()
             if prob<self.mask_prob:
                 prob = rng.uniform()  
                 # 80% of the time replace with [MASK] 
                 if prob < 0.8:
-                    # masked_codes[i] = '<MASK>'
                     masked_ids[i] = self.vocab['<MASK>']
                 # 10% change token to random token
                 elif prob < 0.9:      
-                    random_code = rng.choice(self.nonspecial_codes)          
-                    # masked_codes[i] = random_code# first tokens are special!
-                    masked_ids[i] = self.vocab[random_code]
+                    masked_ids[i] = rng.choice(self.nonspecial_ids) 
                 # 10% keep original
-                labels[i] = self.vocab[code]
+                labels[i] = id
         return masked_ids, labels
 
 class PatientDatum():
