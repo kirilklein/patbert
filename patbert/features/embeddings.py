@@ -1,9 +1,12 @@
-from torch import nn
+import string
+from operator import itemgetter
+
 import numpy as np
 import torch
-import string
-from patbert.common import medical
-from patbert.common import common
+from torch import nn
+
+from patbert.common import common, medical
+
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, segment, age
@@ -141,7 +144,7 @@ class TrainableHierarchicalEmbedding(nn.Embedding):
 
 
 class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
-    def __init__(self, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
+    def __init__(self, vocab, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
             alpha_trainable:bool=False, kappa_trainable:bool=False, fully_trainable_scaling=False):
         """
         kappa: exponent to make vectors shorter with each hierarchy level
@@ -152,6 +155,7 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
         self.vocabs = self.sks()
         self.num_levels = num_levels
         self.fully_trainable_scaling = fully_trainable_scaling
+        self.main_inv_vocab = {v:k for k,v in vocab.items()}
         if self.fully_trainable_scaling:
             self.kappa = kappa
             self.alpha = alpha
@@ -159,12 +163,14 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
             self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
             self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
 
-    def __call__(self, codes, values=None):
+    def __call__(self, ids, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
         if values is None:
-            values = torch.ones(len(codes))
-        if len(codes)!=len(values):
+            values = torch.ones_like(ids)
+        if len(ids)!=len(values):
             raise ValueError("Codes and values must have the same length")
+        ids = ids.tolist()
+        codes = itemgetter(*ids)(self.main_inv_vocab)
         self.id_arr_ls = self.get_ids_from_codes(codes)
         self.embedding_ls = self.initialize_static_embeddings()
         self.set_zero_weight()

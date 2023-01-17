@@ -1,5 +1,5 @@
-from patbert.features.dataset import MLM_PLOS_Dataset
 from patbert.common import common
+from patbert.features.dataset import MLM_PLOS_Dataset
 
 data, vocab = common.load_data('synthetic')
 

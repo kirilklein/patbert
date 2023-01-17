@@ -1,12 +1,13 @@
-from torch.utils.data.dataset import Dataset
 import numpy as np
-from patbert.features import utils 
-from numpy.random import default_rng
 import torch
+from numpy.random import default_rng
+from torch.utils.data.dataset import Dataset
+
+from patbert.features import utils
 
 
 class MLM_PLOS_Dataset(Dataset):
-    def __init__(self, data, vocab, channels=['codes', 'visits', 'abs_pos', 'ages'], 
+    def __init__(self, data, vocab, channels=['visits', 'abs_pos', 'ages'], 
             mask_prob=.15, pad_len=None, plos=False):
         self.data = data
         self.vocab = vocab
@@ -28,7 +29,7 @@ class MLM_PLOS_Dataset(Dataset):
         out_dic['attention_mask'] = mask
         codes, ids, labels = self.random_mask_codes_ids(pat_data['codes'], pat_data['idx']) 
         # pad code sequence, segments and label
-        pat_data['codes'] = codes
+        #pat_data['codes'] = codes
         pat_data['idx'] = ids
         pat_data['labels'] = labels
         pad_tokens = [0, 0, 0, -100, self.vocab['<PAD>'], '<PAD>'] # other channels need different padding
@@ -64,16 +65,16 @@ class MLM_PLOS_Dataset(Dataset):
         """Pad a sequence to the given length."""
         return seq + (self.pad_len-len(seq)) * [pad_token]
 
-    def random_mask_codes_ids(self, codes, ids, seed=0, ):
+    def random_mask_codes_ids(self, ids, seed=0, ):
         """mask code with 15% probability, 80% of the time replace with [MASK], 
             10% of the time replace with random token, 10% of the time keep original"""
         rng = default_rng(seed)
-        masked_codes = codes.copy()
+        # masked_codes = codes.copy()
         masked_ids = ids.copy()
         # TODO: this needs to be improved
-        labels = len(codes) * [-100] 
+        labels = len(ids) * [-100] 
         
-        for i, code in enumerate(codes):
+        for i, code in enumerate(ids):
             if code not in self.nonspecial_codes:
                 continue
             prob = rng.uniform()
@@ -81,16 +82,16 @@ class MLM_PLOS_Dataset(Dataset):
                 prob = rng.uniform()  
                 # 80% of the time replace with [MASK] 
                 if prob < 0.8:
-                    masked_codes[i] = '<MASK>'
+                    # masked_codes[i] = '<MASK>'
                     masked_ids[i] = self.vocab['<MASK>']
                 # 10% change token to random token
                 elif prob < 0.9:      
                     random_code = rng.choice(self.nonspecial_codes)          
-                    masked_codes[i] = random_code# first tokens are special!
+                    # masked_codes[i] = random_code# first tokens are special!
                     masked_ids[i] = self.vocab[random_code]
                 # 10% keep original
                 labels[i] = self.vocab[code]
-        return masked_codes, masked_ids, labels
+        return masked_ids, labels
 
 class PatientDatum():
     def __init__(self, data, vocab, pat_id):

@@ -1,17 +1,19 @@
-from transformers import Trainer, BertConfig, BertForPreTraining
-from patbert.features.embeddings import StaticHierarchicalEmbedding
-from patbert.common import common, pytorch
-import torch
-from tqdm import tqdm
-import os 
-from os.path import join, split
 import json
+import os
+from os.path import join, split
+
 import numpy as np
+import torch
 import torch.nn as nn
+from tqdm import tqdm
+from transformers import BertConfig, BertForPreTraining, Trainer
+
+from patbert.common import common, pytorch
+from patbert.features.embeddings import StaticHierarchicalEmbedding
 
 
 class CustomPreTrainer(Trainer):
-    def __init__(self, train_dataset, val_dataset, model, epochs, embeddings,
+    def __init__(self, vocab, train_dataset, val_dataset, model, epochs, embeddings,
                 batch_size, model_dir, lr=5e-5, optimizer=torch.optim.AdamW, 
                 checkpoint_freq=5, from_checkpoint=False, config=None, args=None):
         self.train_dataset = train_dataset
@@ -26,7 +28,7 @@ class CustomPreTrainer(Trainer):
         self.from_checkpoint = from_checkpoint
         self.config = config
         if embeddings=='static':
-            self.embeddings = StaticHierarchicalEmbedding(
+            self.embeddings = StaticHierarchicalEmbedding(vocab,
                     embedding_dim=config.hidden_size)
         #self.embeddings.weight.requires_grad = False # freeze embeddings
         self.args = args

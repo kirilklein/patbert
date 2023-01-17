@@ -1,5 +1,6 @@
 import os
-from os.path import join, dirname, realpath
+from os.path import dirname, join, realpath
+
 import numpy as np
 import torch
 

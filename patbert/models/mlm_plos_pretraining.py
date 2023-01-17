@@ -9,7 +9,7 @@ from torch.utils.data import random_split
 from os.path import join
 import numpy as np
 from os.path import join, dirname, realpath
-
+base_dir = dirname(dirname(dirname(realpath(__file__))))
 
 def get_model(config_file, vocab, load_model, model_dir):
     # configure model
@@ -58,7 +58,7 @@ def main(
                     [1-config.validation_size, config.validation_size],
                     generator=torch.Generator().manual_seed(42))
     
-    trainer = utils.CustomPreTrainer(train_dataset, val_dataset, model, epochs,
+    trainer = utils.CustomPreTrainer(vocab, train_dataset, val_dataset, model, epochs,
                 embeddings, 
                 batch_size, model_dir, checkpoint_freq=checkpoint_freq, 
                 from_checkpoint=from_checkpoint, config=config, args=args)

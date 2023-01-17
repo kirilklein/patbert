@@ -1,8 +1,9 @@
+import pickle as pkl
+from collections import defaultdict
+from os.path import dirname, join, realpath
+
 import torch
 import typer
-import pickle as pkl
-from os.path import join, dirname, realpath
-from collections import defaultdict
 
 
 class EHRTokenizer():

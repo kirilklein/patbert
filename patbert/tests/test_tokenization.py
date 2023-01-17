@@ -1,8 +1,8 @@
-from patbert.features import tokenizer
-import pickle
 import os
-from os.path import join, dirname, realpath
+import pickle
+from os.path import dirname, join, realpath
 
+from patbert.features import tokenizer
 
 base_dir = dirname(dirname(dirname(realpath(__file__))))
 data_dir = join(base_dir, 'data')
