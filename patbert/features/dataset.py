@@ -27,14 +27,15 @@ class MLM_PLOS_Dataset(Dataset):
             out_dic['plos'] = int(any((np.array(pat_data['los'])>7)))
         mask = self.get_mask(pat_data)
         out_dic['attention_mask'] = mask
-        ids, labels = self.random_mask_codes_ids(pat_data['codes'], pat_data['idx']) 
+        ids, labels = self.random_mask_ids(pat_data['idx']) 
         # pad code sequence, segments and label
         #pat_data['codes'] = codes
         pat_data['idx'] = ids
         pat_data['labels'] = labels
         pad_tokens = [0, 0, 0, -100, self.vocab['<PAD>']] # other channels need different padding
         for channel, pad_token in zip(self.channels+['labels', 'idx'], pad_tokens):
-            out_dic[channel] = utils.seq_padding(pat_data[channel], pad_token)        
+            out_dic[channel] = self.seq_padding(pat_data[channel], pad_token)    
+            print(channel, out_dic[channel])    
             out_dic[channel] = torch.LongTensor(out_dic[channel])    
             
         return out_dic
@@ -64,7 +65,7 @@ class MLM_PLOS_Dataset(Dataset):
         """Pad a sequence to the given length."""
         return seq + (self.pad_len-len(seq)) * [pad_token]
 
-    def random_mask_codes_ids(self, ids, seed=0, ):
+    def random_mask_ids(self, ids, seed=0, ):
         """mask code with 15% probability, 80% of the time replace with [MASK], 
             10% of the time replace with random token, 10% of the time keep original"""
         rng = default_rng(seed)
