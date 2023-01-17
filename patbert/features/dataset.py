@@ -7,7 +7,8 @@ from patbert.features import utils
 
 
 class MLM_PLOS_Dataset(Dataset):
-    def __init__(self, data, vocab, channels=['visits', 'abs_pos', 'ages'], 
+    def __init__(self, data, vocab, 
+            channels=['visits', 'abs_pos', 'ages', 'values'], 
             mask_prob=.15, pad_len=None, plos=False):
         self.data = data
         self.vocab = vocab
@@ -28,14 +29,15 @@ class MLM_PLOS_Dataset(Dataset):
         mask = self.get_mask(pat_data)
         out_dic['attention_mask'] = mask
         ids, labels = self.random_mask_ids(pat_data['idx']) 
+        pat_data['values'] = self.mask_values(ids, pat_data['values']) # otherwise model could infer e.g. lab test
         # pad code sequence, segments and label
         #pat_data['codes'] = codes
         pat_data['idx'] = ids
         pat_data['labels'] = labels
-        pad_tokens = [0, 0, 0, -100, self.vocab['<PAD>']] # other channels need different padding
+        pad_tokens = [0, 0, 0, 1, -100, self.vocab['<PAD>']] # other channels need different padding
         for channel, pad_token in zip(self.channels+['labels', 'idx'], pad_tokens):
             out_dic[channel] = self.seq_padding(pat_data[channel], pad_token)    
-            print(channel, out_dic[channel])    
+            #print(channel, out_dic[channel])    
             out_dic[channel] = torch.LongTensor(out_dic[channel])    
             
         return out_dic
@@ -43,6 +45,14 @@ class MLM_PLOS_Dataset(Dataset):
     def __len__(self):
         return len(self.data)
     
+    def mask_values(self, ids, values):
+        """Mask values the same way ids were masked"""
+        mask_id = self.vocab['<MASK>']
+        mask = np.array(ids)==mask_id
+        values = np.array(values)
+        values[mask] = 1
+        return values.tolist()
+
 
     def get_mask(self, pat_data):
         mask = np.ones(self.pad_len)
