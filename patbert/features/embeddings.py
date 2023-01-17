@@ -159,8 +159,10 @@ class StaticHierarchicalEmbedding(TrainableHierarchicalEmbedding):
             self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
             self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
 
-    def __call__(self, codes, values):
+    def __call__(self, codes, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
+        if values is None:
+            values = torch.ones(len(codes))
         if len(codes)!=len(values):
             raise ValueError("Codes and values must have the same length")
         self.id_arr_ls = self.get_ids_from_codes(codes)

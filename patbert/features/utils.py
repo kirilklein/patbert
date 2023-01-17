@@ -27,30 +27,6 @@ def random_mask(idxs, vocab, mask_prob=0.15,
             labels[i] = idx
     return masked_idxs, labels
 
-def random_mask_codes(codes, vocab, mask_prob=0.15,
-    special_tokens=['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', ], seed=0):
-    """mask code with 15% probability, 80% of the time replace with [MASK], 
-        10% of the time replace with random token, 10% of the time keep original"""
-    rng = default_rng(seed)
-    masked_codes = codes.copy()
-    special_idxs = [vocab[token] for token in special_tokens]
-    labels = len(codes) * ['<IGNORE>'] 
-    
-    for i, code in enumerate(codes):
-        if code in special_tokens:
-            continue
-        prob = rng.uniform()
-        if prob<mask_prob:
-            prob = rng.uniform()  
-            # 80% of the time replace with [MASK] 
-            if prob < 0.8:
-                masked_codes[i] = vocab['<MASK>']
-            # 10% change token to random token
-            elif prob < 0.9:
-                masked_codes[i] = rng.choice(list(vocab.values())[len(special_idxs):]) # first tokens are special!
-            # 10% keep original
-            labels[i] = code
-    return masked_codes, labels
 
 def combine_masks(mask1, mask2):
     """Combine two masks into one mask. 1 where either mask is 1, 0 otherwise"""
@@ -67,6 +43,9 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
         tokens, then only slightly faster"""
     rng = default_rng(seed)
     idxs = np.array(idxs)
+    special_tokens += ['<SEX>0', '<SEX>1']
+    special_tokens += [f'<BIRTHYEAR>{year}' for year in range(1900,2022)]
+    special_tokens += [f'<BIRTHMONTH>{month}' for month in range(1,13)]
     special_idxs = np.array([vocab[token] for token in special_tokens])
     # Generate a mask indicating which tokens are special
     special_mask = np.isin(idxs, special_idxs)
@@ -89,6 +68,7 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
     return masked_idxs, labels
 
 def seq_padding(seq, max_len, vocab):
+    """Pad a sequence to the given length."""
     return seq + (max_len-len(seq)) * [vocab['<PAD>']]
 
 #TODO torch.utils.data.random_split

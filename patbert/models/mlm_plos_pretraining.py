@@ -1,43 +1,22 @@
 from transformers import BertForPreTraining, BertConfig
 from patbert.features.dataset import MLM_PLOS_Dataset
 from patbert.models import utils
+from patbert.common import common
 import torch
 import typer
 import json
 from torch.utils.data import random_split
 from os.path import join
 import numpy as np
+from os.path import join, dirname, realpath
 
 
-def main(
-    data_file : str = typer.Argument(..., help="Tokenized data"),
-    model_dir : str = typer.Argument(..., help="Directory to save model"),
-    epochs : int = typer.Argument(..., help="Number of epochs"),
-    batch_size : int = typer.Option(32, help="Batch size"),
-    load_model : bool = typer.Option(False, help="Load saved model"),
-    max_len : int = typer.Option(None, help="maximum number of tokens in seq"),
-    max_num_seg : int = typer.Option(100, help="maximum number of segments in seq"),
-    config_file : str = typer.Option(join('configs','pretrain_config.json'), 
-        help="Location of the config file"),
-    checkpoint_freq : int = typer.Option(5, help="Frequency of checkpoints in epochs"),
-    from_checkpoint : bool = typer.Option(False, help="Load model from checkpoint")
-    ):
-    
-    args = locals()
-    print(args)
-    typer.echo(f"Arguments: {args}")
-    assert False
-    data = torch.load(data_file) # list of dicts
-    
-    if isinstance(max_num_seg, type(None)):
-        max_num_seg = int(np.max([max(segs) for segs in data['segments']])) + 1 # +1 for padding
-    print(data)
-    #data = pd.DataFrame(data)
-    
-    vocab = torch.load(vocab_file)
+def get_model(config_file, vocab, load_model, model_dir):
+    # configure model
     with open(config_file) as f:
             config_dic = json.load(f)
     config = BertConfig(vocab_size=len(vocab), **config_dic)
+    
     if not load_model:
         print("Initialize new model")
         model = BertForPreTraining(config)
@@ -46,19 +25,41 @@ def main(
     else:
         print(f"Load saved model from {model_dir}")
         model = torch.load(join(model_dir, 'model.pt'))
-    # Create an instance of the BERT model with an additional FC layer
-    config.vocab_size = len(vocab)
-    config.pad_token_id = vocab['PAD']
-    config.seg_vocab_size = max_num_seg
-    typer.echo(f"Config: {vars(config)}")
+    return model, config
 
-    dataset = MLM_PLOS_Dataset(data, vocab, max_len)
+
+def main(
+    dataset_name : str = typer.Argument(..., help="Name of dataset, assumes that vocab and tokenized data are present"),
+    model_name : str = typer.Argument(..., help="Directory to save model"),
+    epochs : int = typer.Argument(..., help="Number of epochs"),
+    embeddings : str = typer.Option('static', help="Embeddings to use"),
+    batch_size : int = typer.Option(32, help="Batch size"),
+    load_model : bool = typer.Option(False, help="Load saved model"),
+    max_len : int = typer.Option(None, help="maximum number of tokens in seq"),
+    config_file : str = typer.Option(join('configs','pretrain_config.json'), 
+        help="Location of the config file"),
+    checkpoint_freq : int = typer.Option(5, help="Frequency of checkpoints in epochs"),
+    from_checkpoint : bool = typer.Option(False, help="Load model from checkpoint")
+    ):
+    
+    args = locals()
+    typer.echo(f"Arguments: {args}")    
+    data, vocab = common.load_data(dataset_name)
+    model_dir = join(base_dir, 'models', model_name + '.pt')
+    model, config = get_model(config_file, vocab, load_model, model_dir)
+    #typer.echo(f"Config: {vars(config)}")
+
+    # there must be better ways of doing if    
+    config.vocab_size = len(vocab)
+    config.pad_token_id = vocab['<PAD>']
+    dataset = MLM_PLOS_Dataset(data, vocab, pad_len=max_len)
     print(f"Use {config.validation_size*100}% of data for validation")
     train_dataset, val_dataset = random_split(dataset, 
                     [1-config.validation_size, config.validation_size],
                     generator=torch.Generator().manual_seed(42))
     
-    trainer = utils.CustomPreTrainer(train_dataset, val_dataset, model, epochs, 
+    trainer = utils.CustomPreTrainer(train_dataset, val_dataset, model, epochs,
+                embeddings, 
                 batch_size, model_dir, checkpoint_freq=checkpoint_freq, 
                 from_checkpoint=from_checkpoint, config=config, args=args)
     trainer()

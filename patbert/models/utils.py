@@ -1,5 +1,5 @@
 from transformers import Trainer, BertConfig, BertForPreTraining
-from patbert.features.embeddings import TrainableHierarchicalEmbedding
+from patbert.features.embeddings import StaticHierarchicalEmbedding
 from patbert.common import common, pytorch
 import torch
 from tqdm import tqdm
@@ -11,7 +11,7 @@ import torch.nn as nn
 
 
 class CustomPreTrainer(Trainer):
-    def __init__(self, train_dataset, val_dataset, model, epochs, 
+    def __init__(self, train_dataset, val_dataset, model, epochs, embeddings,
                 batch_size, model_dir, lr=5e-5, optimizer=torch.optim.AdamW, 
                 checkpoint_freq=5, from_checkpoint=False, config=None, args=None):
         self.train_dataset = train_dataset
@@ -25,8 +25,10 @@ class CustomPreTrainer(Trainer):
         self.checkpoint_freq = checkpoint_freq
         self.from_checkpoint = from_checkpoint
         self.config = config
-        self.embeddings = TrainableHierarchicalEmbedding()# TODO: continue here, pass in the vocab etc.
-        self.embeddings.weight.requires_grad = False # freeze embeddings
+        if embeddings=='static':
+            self.embeddings = StaticHierarchicalEmbedding(
+                    embedding_dim=config.hidden_size)
+        #self.embeddings.weight.requires_grad = False # freeze embeddings
         self.args = args
     def __call__(self):
         device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -43,13 +45,19 @@ class CustomPreTrainer(Trainer):
             train_loop = tqdm(trainloader, leave=True)
             for i, batch in enumerate(train_loop):
                 # initialize calculated grads
+                # TODO: think how to do it without needing codes
                 optim.zero_grad()
+                #print(batch)
+                assert False
                 # put all tensor batches required for training
                 batch = pytorch.batch_to_device(batch, device)
                 # get embeddings
                 #TODO: the dataloader has to produce static embeddings batchwise
-                embedding_output = self.embeddings(batch['codes'], batch['segments'])
-                               
+                code_embedding = self.embeddings(batch['codes'], batch['values'])
+                abs_pos_emb = self.abs_pos_emb(batch['abs_pos'])
+                visit_emb = self.visit_emb(batch(['visits']))
+                # age_emb = self.time2vec_emb() 
+                # abs_pos_emb = self.time2vec_emb()
                 # process
                 outputs = self.model(inputs_embeds=embedding_output, 
                             attention_mask=batch['attention_mask'], 
