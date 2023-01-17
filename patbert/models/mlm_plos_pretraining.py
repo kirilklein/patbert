@@ -1,15 +1,16 @@
-from transformers import BertForPreTraining, BertConfig
-from patbert.features.dataset import MLM_PLOS_Dataset
-from patbert.models import utils
-from patbert.common import common
+import json
+from os.path import dirname, join, realpath
+
 import torch
 import typer
-import json
 from torch.utils.data import random_split
-from os.path import join
-import numpy as np
-from os.path import join, dirname, realpath
-base_dir = dirname(dirname(dirname(realpath(__file__))))
+from transformers import BertConfig, BertForPreTraining
+
+from patbert.common import common
+from patbert.features.dataset import MLM_PLOS_Dataset
+from patbert.models import utils
+
+
 
 def get_model(config_file, vocab, load_model, model_dir):
     # configure model
@@ -45,6 +46,7 @@ def main(
     args = locals()
     typer.echo(f"Arguments: {args}")    
     data, vocab = common.load_data(dataset_name)
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
     model_dir = join(base_dir, 'models', model_name + '.pt')
     model, config = get_model(config_file, vocab, load_model, model_dir)
     #typer.echo(f"Config: {vars(config)}")
