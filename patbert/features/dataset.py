@@ -25,18 +25,17 @@ class MLM_PLOS_Dataset(Dataset):
         out_dic = {}
         if self.plos:
             out_dic['plos'] = int(any((np.array(pat_data['los'])>7)))
-        mask = self.get_mask()
+        mask = self.get_mask(pat_data)
         out_dic['attention_mask'] = mask
-        codes, ids, labels = self.random_mask_codes_ids(pat_data['codes'], pat_data['idx']) 
+        ids, labels = self.random_mask_codes_ids(pat_data['codes'], pat_data['idx']) 
         # pad code sequence, segments and label
         #pat_data['codes'] = codes
         pat_data['idx'] = ids
         pat_data['labels'] = labels
-        pad_tokens = [0, 0, 0, -100, self.vocab['<PAD>'], '<PAD>'] # other channels need different padding
-        for k, pad_token in zip(['visits','abs_pos', 'ages', 'labels', 'idx', 'codes'], pad_tokens):
-            out_dic[k] = utils.seq_padding(pat_data[k], pad_token)        
-        for key in ['visits','abs_pos', 'ages', 'labels', 'idx']:
-            out_dic[key] = torch.LongTensor(out_dic[key])    
+        pad_tokens = [0, 0, 0, -100, self.vocab['<PAD>']] # other channels need different padding
+        for channel, pad_token in zip(self.channels+['labels', 'idx'], pad_tokens):
+            out_dic[channel] = utils.seq_padding(pat_data[channel], pad_token)        
+            out_dic[channel] = torch.LongTensor(out_dic[channel])    
             
         return out_dic
 
