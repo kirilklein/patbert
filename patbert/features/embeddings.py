@@ -6,6 +6,7 @@ import torch
 from torch import nn
 
 from patbert.common import common, medical
+from multiprocessing import Pool    
 
 class Embedding(nn.Embedding):
     """Modifying the embedding module to handle integer input as well"""
@@ -44,7 +45,12 @@ class StaticHierarchicalEmbedding(Embedding):
             values = torch.ones_like(ids)
         if len(ids)!=len(values):
             raise ValueError("Codes and values must have the same length")
-        ids = ids.tolist()
+        ids_ls = ids.tolist()
+        values_ls = values.tolist()
+        with Pool(5) as p:
+            results = p.map(self.embed_seq, zip(ids_ls, values_ls))
+        return torch.stack(results)
+    def embed_seq(self, ids, values):
         codes = itemgetter(*ids)(self.main_inv_vocab)
         self.id_arr_ls = self.get_ids_from_codes(codes)
         self.embedding_ls = self.initialize_static_embeddings()
@@ -54,7 +60,6 @@ class StaticHierarchicalEmbedding(Embedding):
         self.scale_embedding_mat()
         self.multiply_embedding_mat_by_values(values)
         return self.embedding_mat
-
     def initialize_static_embeddings(self):
         embedding_ls = [] # TODO: think about vectorizing
         for vocab in self.vocabs:

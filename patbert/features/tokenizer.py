@@ -7,7 +7,8 @@ import typer
 
 
 class EHRTokenizer():
-    def __init__(self, vocabulary=None, max_len=None, len_background=5):
+    def __init__(self, vocabulary=None, max_len=None, len_background=5,
+        channels=['visits', 'ages','abs_pos','los','values']):
         """Add description"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
@@ -22,6 +23,7 @@ class EHRTokenizer():
         self.vocabs = [self.vocabulary]
         self.max_len = max_len
         self.len_background = len_background # usually cls, sex, birthyear, birthmonth
+        self.channels = channels
     def __call__(self, seqs):
         return self.batch_encode(seqs)
 
@@ -78,7 +80,7 @@ class EHRTokenizer():
         
         for key in ['visits', 'ages', 'abs_pos', 'los']: # fill other lists with zeros
             self.insert_values(len(background_codes), key, 0)
-        self.insert_values(len(background_codes), 'values', 1)
+        self.insert_values(len(background_codes), 'values', 1) # fill values with 1
     
     def insert_code_idx(self, code):
         """We insert code to codes and the corresponding index to idx."""
@@ -149,7 +151,7 @@ def main(
     vocab_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
     out_data_path: str = typer.Option(None, help="Path to save tokenized data, must end with .pt"),
     max_len: int = 
-        typer.Option(None, help="maximum number of tokens to keep for each visit"),
+        typer.Option(30, help="maximum number of tokens to keep for each visit"),
     ):
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
@@ -163,8 +165,8 @@ def main(
         vocab_save_path = join(data_dir, 'vocabs', input_data + '.pt')
     if isinstance(out_data_path, type(None)):
         out_data_path = join(data_dir, 'tokenized', input_data + '.pt')
-    Tokenizer.save_vocab(vocab_save_path)
     print(f"Save tokenized data to {out_data_path}")
+    Tokenizer.save_vocab(vocab_save_path)
     torch.save(tokenized_data_dic, out_data_path)
     
 if __name__ == "__main__":
