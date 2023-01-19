@@ -49,32 +49,11 @@ class MedicalCodes():
             self.sks_codes = list(pkl.load(f))
         with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
             self.npu_codes = pkl.load(f) 
-
-class SKSVocabConstructor():
-    """get a list of SKS codes of a certain type
-    We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self, main_vocab, additional_types=None, num_levels=6):
-        medcodes = MedicalCodes()
-        self.codes = medcodes.sks_codes
-        self.codes += medcodes.npu_codes
-        self.main_vocab = main_vocab
-        self.vocabs = []
-        self.special_tokens = [k for k in main_vocab if k.startswith('<')]
-        if isinstance(additional_types, type(None)):
-            self.additional_types=['D', 'M', 'L']
-        self.num_levels = num_levels
-    def __call__(self):
-        """return vocab dics"""
-        for level in range(self.num_levels):
-            self.vocabs.append(self.construct_vocab_dic(level))
-        return self.vocabs
+        self.codes = self.npu_codes + self.sks_codes
 
     def get_codes_type(self, signature, min_len=2):
         codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
         return [c for c in codes if len(c)>=min_len]
-    
-
-    # TODO: move these functions to MedicalCodes
     def get_lab(self):
         return sorted(self.get_codes_type('lab'))
     def get_icd(self):
@@ -95,6 +74,25 @@ class SKSVocabConstructor():
         return sorted(self.get_codes_type('uly'))
     def get_studies(self):
         return sorted(self.get_codes_type('und'))
+
+class SKSVocabConstructor():
+    """get a list of SKS codes of a certain type
+    We will construct a dictionary for Lab Tests on the fly"""
+    def __init__(self, main_vocab, additional_types=None, num_levels=6):
+        self.medcodes = MedicalCodes()
+        self.codes = self.medcodes.codes
+        self.main_vocab = main_vocab
+        self.vocabs = []
+        self.special_tokens = [k for k in main_vocab if k.startswith('<')]
+        if isinstance(additional_types, type(None)):
+            self.additional_types=['D', 'M', 'L']
+        self.num_levels = num_levels
+    def __call__(self):
+        """return vocab dics"""
+        for level in range(self.num_levels):
+            self.vocabs.append(self.construct_vocab_dic(level))
+        return self.vocabs
+
     def get_birthmonth(self): # needs to be time2vec later
         return [k for k in self.main_vocab if k.startswith('<BIRTHMONTH>')]
     def get_birthyear(self): # needs to be time2vec later
@@ -106,7 +104,8 @@ class SKSVocabConstructor():
             raise ValueError("Level must be between 0 and 5")
         if level==0: # separated by types   
             # TODO: include level 0
-            all_codes = self.get_icd()+self.get_atc()+self.get_lab()\
+            all_codes = self.medcodes.get_icd()+self.medcodes.get_atc()\
+                +self.medcodes.get_lab()\
                 +self.get_birthyear()+self.get_birthmonth()
             vocab = self.get_type_vocab(all_codes)
         elif level==1: # categories, lab tests, birthmonths, birthyears ...
@@ -130,9 +129,9 @@ class SKSVocabConstructor():
 
     def get_first_level_vocab(self):
         vocab = {'<ZERO>':0}
-        for code in self.get_atc()+self.get_icd():
+        for code in self.medcodes.get_atc()+self.medcodes.get_icd():
             vocab[code] = self.topic(code) # only icd and atc codes so far
-        for i, code in enumerate(self.get_lab()):
+        for i, code in enumerate(self.medcodes.get_lab()):
             vocab[code] = i+1
         for code in self.special_tokens: # we loop twice through birthyear and birthmonth
             vocab[code] = 0
@@ -147,7 +146,7 @@ class SKSVocabConstructor():
     def get_lower_level_vocab(self, level):
         # Looks good so far
         vocab = {'<ZERO>':0}
-        for code in self.get_lab():
+        for code in self.medcodes.get_lab():
             vocab[code] = 0
         vocab = self.add_icd_to_vocab(vocab, level)
         vocab = self.add_atc_to_vocab(vocab, level)
@@ -165,7 +164,7 @@ class SKSVocabConstructor():
     def add_icd_to_vocab(self, vocab, level):
         """Add disease codes to vocabulary levels lower than 1"""
         temp_vocab = self.get_temp_vocab_icd(level)
-        for code in self.get_icd():
+        for code in self.medcodes.get_icd():
             if code.startswith(('DU', 'DV')):
                 vocab = self.handle_special_disease_codes(code, level, vocab, temp_vocab)
             else:
@@ -178,7 +177,7 @@ class SKSVocabConstructor():
     def add_atc_to_vocab(self, vocab, level):
         """Add medication codes at levels lower than 1"""
         temp_vocab = self.get_temp_vocab_atc(level)
-        for code in self.get_atc():
+        for code in self.medcodes.get_atc():
             if level==2:
                 vocab[code] = temp_vocab[code[2:4]]
             elif level==3 or level==4:
