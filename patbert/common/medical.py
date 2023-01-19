@@ -260,7 +260,7 @@ class SKSVocabConstructor():
             temp_vocab = self.insert_voc('02A', temp_vocab)
             return temp_vocab
         
-        for code in self.get_icd():
+        for code in self.medcodes.get_icd():
             if code.startswith('DU') or code.startswith('DV'):
                 # special codes
                 special_code_bool = [code.startswith(s) for s in special_codes]
@@ -382,8 +382,4 @@ class SKSVocabConstructor():
         return len(options)+4
 
 
-
-
-
-
-#TODO: there exist subtopics for ICD10 codes, but I don't know how to implement them yet
+#TODO: Implement subtopics for ICD codes

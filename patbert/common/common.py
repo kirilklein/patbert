@@ -36,7 +36,6 @@ def get_last_nonzero_idx(x, axis):
     """Returns index of the first 0 along axis or -1 if no zero"""
     mask = (x == 0).to(int)
     last_nonzero = torch.argmax(mask, dim=axis)-1
-    print(last_nonzero)
     any_mask = torch.any(mask, dim=axis)
     last_nonzero[~any_mask] = -1
     return last_nonzero
