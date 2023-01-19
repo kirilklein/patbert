@@ -46,16 +46,14 @@ def npu_codes_to_list():
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self, special_tokens=None, additional_types=None, num_levels=6):
+    def __init__(self, main_vocab, additional_types=None, num_levels=6):
         with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
             self.codes = list(pkl.load(f))
         with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
             self.codes += pkl.load(f) 
+        self.main_vocab = main_vocab
         self.vocabs = []
-        if isinstance(special_tokens, type(None)):
-            # we will map 0 onto a zero vector
-            self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                        '<MALE>', '<FEMALE>', '<BIRTHYEAR>', '<BIRTHMONTH>']
+        self.special_tokens = [k for k in main_vocab if k.startswith('<')]
         if isinstance(additional_types, type(None)):
             self.additional_types=['D', 'M', 'L']
         self.num_levels = num_levels
@@ -90,9 +88,9 @@ class SKSVocabConstructor():
     def get_studies(self):
         return sorted(self.get_codes_type('und'))
     def get_birthmonth(self): # needs to be time2vec later
-        return ['<BIRTHMONTH>'+ str(i) for i in range(1,13)]
+        return [k for k in self.main_vocab if k.startswith('<BIRTHMONTH>')]
     def get_birthyear(self): # needs to be time2vec later
-        return ['<BIRTHYEAR>' + str(i) for i in range(1900,2022)]
+        return [k for k in self.main_vocab if k.startswith('<BIRTHMONTH>')]
 
     def construct_vocab_dic(self, level):
         """construct a dictionary of codes and their topics"""
@@ -102,7 +100,6 @@ class SKSVocabConstructor():
 
         if level==0:    
             # TODO: include level 0
-            
             all_codes = self.get_icd()+self.get_atc()+self.get_lab()+self.get_birthyear()+self.get_birthmonth()
             vocab = self.get_type_dic(all_codes)
             
@@ -130,8 +127,7 @@ class SKSVocabConstructor():
     def get_type_dic(self, all_codes):
         """Uses the temporary vocabulary to assign a category to each code."""
         vocab = {'<ZERO>':0}
-        temp_keys = self.special_tokens+self.additional_types
-        temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
+        temp_vocab = self.get_temp_vocab_type()
         all_codes += self.special_tokens
         for code in all_codes:
                 if code[0] in self.additional_types:
@@ -140,6 +136,13 @@ class SKSVocabConstructor():
                     # special tokens
                     vocab[code] = temp_vocab[code.split('>')[0]+'>']
         return vocab
+
+    def get_temp_vocab_type(self):
+        """Get a temporary vocab for types of codes e.g. <CLS>, <SEX>..."""
+        temp_keys = [code.split('>')[0]+'>' for code in self.special_tokens]
+        temp_keys += self.additional_types 
+        temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
+        return temp_vocab
 
     def enumerate_codes_lvl(self, codes, vocab, lvl):
         """Uses the temporary vocabulary to assign a category to each code."""
