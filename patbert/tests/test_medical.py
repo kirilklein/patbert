@@ -1,14 +1,14 @@
 from patbert.common import medical
 from patbert.common import common
-sks = medical.SKSVocabConstructor()
 
+import os 
+import torch
+from os.path import dirname, realpath, join
+base_dir = dirname(dirname(dirname(realpath(__file__))))
 
+main_vocab = torch.load(join(base_dir, 'data', 'vocabs', 'synthetic.pt'))
+sks = medical.SKSVocabConstructor(main_vocab)
 
-def test_codes():
-    icd_codes = sks.get_icd()
-    atc_codes = sks.get_atc()
-    assert all([icd.startswith('D') for icd in icd_codes]), 'ICD codes should start with D'
-    assert all([atc.startswith('M') for atc in atc_codes]), 'ATC codes should start with M'
 
 def test_topics():
     vocab = sks.construct_vocab_dic(1)

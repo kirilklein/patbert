@@ -37,9 +37,9 @@ class Embedding_Tester():
             assert ids_ls[i][1]==ids_ls[i][3], "All indices until first zero have to be the same"
     
     def init_test_codes(self):
-        sks = medical.SKSVocabConstructor()
-        icd = sks.get_icd()
-        atc = sks.get_atc()
+        medcodes = medical.MedicalCodes()
+        icd = medcodes.get_icd()
+        atc = medcodes.get_atc()
         self.test_codes  = [icd[1000], atc[2000], icd[300], atc[2000][:-2], 
             '<BIRTHYEAR>1950', '<BIRTHMONTH>4', '<CLS>']
 
