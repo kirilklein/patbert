@@ -3,8 +3,9 @@ import pickle as pkl
 import string 
 import typer
 from datetime import datetime
-
+from random import sample
 from os.path import dirname, realpath, join
+from patbert.common import medical
 # get path of script
 
 
@@ -43,9 +44,11 @@ class DataGenerator(super):
         los = self.rng.integers(self.min_los, self.max_los, size=num_visits)\
             .tolist()
         los = np.repeat(los, num_codes_per_visit_ls).tolist()
-        icd_codes = self.generate_randomICD10_codes(self.num_icd_codes)
-        atc_codes = self.generate_randomATC_codes(self.num_atc_codes)
-        lab_tests = self.generate_lab_tests(self.num_lab_tests)
+        medcodes = medical.MedicalCodes()
+        icd_codes = sample(medcodes.get_icd(), self.num_icd_codes)
+        atc_codes = sample(medcodes.get_atc(),self.num_atc_codes)
+        lab_tests = sample(medcodes.get_lab(), self.num_lab_tests)
+
         codes = icd_codes + atc_codes + lab_tests
         values = [1]*(len(icd_codes)+len(atc_codes)) + self.rng.normal(size=len(lab_tests)).tolist()
         idx = self.rng.choice(np.arange(len(codes)), np.sum(num_codes_per_visit_ls), replace=True)
@@ -116,37 +119,6 @@ class DataGenerator(super):
         day = self.rng.integers(1, 28)
         return datetime(year, month, day)
 
-    def generate_randomICD10_codes(self, n):
-        """Diseases are coded using the ICD-10 classification system. 
-        To indicate a disease the code starts with a capital D followed by a letter and a number. 
-        ICD codes are divided into topics, then into categories and subcategories.
-        """
-        letters = self.rng.choice([char for char in string.ascii_uppercase], 
-            size=n, replace=True)
-        numbers_category = self.rng.choice(np.arange(100), size=n, replace=True)
-        numbers_subcategory = self.rng.choice(np.arange(1000), size=n, replace=True)
-        lengths = self.rng.integers(low=1, high=4, size=n)
-        codes = ["D" + letter + str(number_category).zfill(2) + str(number_subcategory).zfill(3)[:length] for \
-            letter, number_category, number_subcategory, length \
-                in zip(letters, numbers_category, numbers_subcategory, lengths)]
-        return codes
-
-    def generate_randomATC_codes(self, n):
-        """ATC codes will start with M, following SKS."""
-        letters = np.random.choice([char for char in string.ascii_uppercase], 
-            size=2*n, replace=True)
-        numbers = np.random.choice(np.arange(100), size=2*n, replace=True)
-        codes = ["M" + letter0 + str(number0).zfill(2) + letter1 + str(number1).zfill(2) for \
-            letter0, number0, letter1, number1 in zip(letters[:n], numbers[:n], letters[n:], numbers[n:])]
-        return codes
-    
-    def generate_lab_tests(self, num_lab_tests):
-        """Look up what lab tests start with, we will use L for now."""
-        lab_tests = []
-        for _ in range(num_lab_tests):
-            lab_tests.append(('L'+str(self.rng.integers(self.num_lab_tests))))
-        return lab_tests
-
     def simulate_data(self):
         for pid in range(self.num_patients):
             yield self.generate_patient_history('p_'+str(pid))
@@ -155,7 +127,7 @@ class DataGenerator(super):
 def main(save_name: str = typer.Option('synthetic', 
         help="name of the file to save the data to, will be saved as pkl"),
         num_patients : int = typer.Option(100), 
-        min_num_visits: int = typer.Option(2),
+        min_num_visits: int = typer.Option(1),
         max_num_visits: int = typer.Option(10),
         min_num_codes_per_visit: int = typer.Option(1),
         max_num_codes_per_visit: int = typer.Option(5),
@@ -171,6 +143,7 @@ def main(save_name: str = typer.Option('synthetic',
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     save_path = join(base_dir, 'data', 'raw' ,save_name + '.pkl')
+
     with open(save_path, 'wb') as f:
         pkl.dump([hist for hist in generator.simulate_data()], f)
     #print([hist for hist in generator.simulate_data()])
