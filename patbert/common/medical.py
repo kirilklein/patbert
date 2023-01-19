@@ -43,14 +43,20 @@ def npu_codes_to_list():
     with open(join(data_dir, "medical", "NPUcodes.pkl"), "wb") as f:
         pkl.dump(codes, f)
 
+class MedicalCodes():
+    def __init__(self):
+        with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
+            self.sks_codes = list(pkl.load(f))
+        with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
+            self.npu_codes = pkl.load(f) 
+
 class SKSVocabConstructor():
     """get a list of SKS codes of a certain type
     We will construct a dictionary for Lab Tests on the fly"""
     def __init__(self, main_vocab, additional_types=None, num_levels=6):
-        with open(join(data_dir, "medical","SKScodes.pkl"), "rb") as f:
-            self.codes = list(pkl.load(f))
-        with open(join(data_dir, "medical","NPUcodes.pkl"), "rb") as f:
-            self.codes += pkl.load(f) 
+        medcodes = MedicalCodes()
+        self.codes = medcodes.sks_codes
+        self.codes += medcodes.npu_codes
         self.main_vocab = main_vocab
         self.vocabs = []
         self.special_tokens = [k for k in main_vocab if k.startswith('<')]
@@ -66,7 +72,9 @@ class SKSVocabConstructor():
     def get_codes_type(self, signature, min_len=2):
         codes =[c.strip(signature) for c in self.codes if c.startswith(signature)]
         return [c for c in codes if len(c)>=min_len]
-        
+    
+
+    # TODO: move these functions to MedicalCodes
     def get_lab(self):
         return sorted(self.get_codes_type('lab'))
     def get_icd(self):
