@@ -27,7 +27,7 @@ class StaticHierarchicalEmbedding(Embedding):
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
         # TODO: make fully trainable scaling
         self.embedding_dim = embedding_dim
-        self.sks = medical.SKSVocabConstructor(num_levels=num_levels)
+        self.sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
         self.vocabs = self.sks()
         self.num_levels = num_levels
         self.fully_trainable_scaling = fully_trainable_scaling
@@ -38,28 +38,34 @@ class StaticHierarchicalEmbedding(Embedding):
         else:
             self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
             self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
-
+        self.embedding_ls = self.initialize_static_embeddings()
+        self.set_zero_weight()
+        self.set_to_static()
     def __call__(self, ids, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
         if values is None:
             values = torch.ones_like(ids)
         if len(ids)!=len(values):
             raise ValueError("Codes and values must have the same length")
+        print('ids type', type(ids))
+        print('values type', type(values))
+        print('ids shape', ids.shape)
+        print('values shape', values.shape)
+        #assert False
         ids_ls = ids.tolist()
         values_ls = values.tolist()
         with Pool(5) as p:
-            results = p.map(self.embed_seq, zip(ids_ls, values_ls))
+            results = p.starmap(self.embed_seq, zip(ids_ls, values_ls))
         return torch.stack(results)
+
     def embed_seq(self, ids, values):
         codes = itemgetter(*ids)(self.main_inv_vocab)
         self.id_arr_ls = self.get_ids_from_codes(codes)
-        self.embedding_ls = self.initialize_static_embeddings()
-        self.set_zero_weight()
-        self.set_to_static()
         self.embedding_mat = self.get_embedding_mat()
         self.scale_embedding_mat()
         self.multiply_embedding_mat_by_values(values)
         return self.embedding_mat
+
     def initialize_static_embeddings(self):
         embedding_ls = [] # TODO: think about vectorizing
         for vocab in self.vocabs:

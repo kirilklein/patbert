@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.random import default_rng
 
+from patbert.common import medical
 
 def random_mask(idxs, vocab, mask_prob=0.15,
     special_tokens=['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', ], seed=0):
@@ -72,3 +73,18 @@ def seq_padding(seq, max_len, vocab):
     return seq + (max_len-len(seq)) * [vocab['<PAD>']]
 
 #TODO torch.utils.data.random_split
+
+def get_int2int_dic_for_hembedings(vocab, num_levels=6):
+    """Construct an ontology mapping from the vocab.
+        where each integer in the vocab is mapped to a list of integers
+        in the hierarchical tokenization of the vocab."""
+    sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
+    vocabs = sks()
+    # for i, vocab in enumerate(vocabs):
+        # print(i)
+        # print({k:v for i,(k,v) in enumerate(vocab.items()) if k.startswith('<')})
+    list_of_dicts = [{} for _ in range(len(vocabs))]
+    for k, v in vocab.items():
+        for int2int, vocab in zip(list_of_dicts, vocabs):
+            int2int[v] = vocab[k]
+    return list_of_dicts

@@ -5,6 +5,8 @@ from os.path import dirname, join, realpath
 import torch
 import typer
 
+from patbert.features import utils
+
 
 class EHRTokenizer():
     def __init__(self, vocabulary=None, max_len=None, len_background=5,
@@ -20,7 +22,6 @@ class EHRTokenizer():
                 self.vocabulary[f'<BIRTHMONTH>{i}'] = len(self.vocabulary)
         else:
             self.vocabulary = vocabulary
-        self.vocabs = [self.vocabulary]
         self.max_len = max_len
         self.len_background = len_background # usually cls, sex, birthyear, birthmonth
         self.channels = channels
@@ -137,6 +138,7 @@ class EHRTokenizer():
         if code not in self.vocabulary:
             self.vocabulary[code] = len(self.vocabulary)
         return self.vocabulary[code]
+    
     # add special tokens
     # check whether length is within limits
     # add background sentence
@@ -145,10 +147,13 @@ class EHRTokenizer():
         torch.save(self.vocabulary, dest)
 
 
+
+
 def main(
     input_data: str = typer.Argument(..., 
         help="name of dataset"),
     vocab_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
+    int2int_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
     out_data_path: str = typer.Option(None, help="Path to save tokenized data, must end with .pt"),
     max_len: int = 
         typer.Option(30, help="maximum number of tokens to keep for each visit"),
@@ -165,9 +170,13 @@ def main(
         vocab_save_path = join(data_dir, 'vocabs', input_data + '.pt')
     if isinstance(out_data_path, type(None)):
         out_data_path = join(data_dir, 'tokenized', input_data + '.pt')
+    if isinstance(int2int_save_path, type(None)):
+        int2int_save_path = join(data_dir, 'hierarchy_vocabs', input_data + '.pt')
     print(f"Save tokenized data to {out_data_path}")
     Tokenizer.save_vocab(vocab_save_path)
     torch.save(tokenized_data_dic, out_data_path)
-    
+    print(f"Create int2int dictionaries for hiearchical embeddings")
+    int2int  = utils.get_int2int_dic_for_hembedings(Tokenizer.vocabulary, num_levels=6)
+    torch.save(int2int, int2int_save_path)
 if __name__ == "__main__":
     typer.run(main)
