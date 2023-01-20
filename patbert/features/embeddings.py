@@ -1,4 +1,3 @@
-import string
 from operator import itemgetter
 
 import numpy as np
@@ -17,7 +16,6 @@ class Embedding(nn.Embedding):
         else:
             # handle tensor input
             return super(Embedding, self).forward(input)
-    
 
 class StaticHierarchicalEmbedding(Embedding):
     def __init__(self, vocab, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
@@ -57,7 +55,7 @@ class StaticHierarchicalEmbedding(Embedding):
         with Pool(5) as p:
             results = p.starmap(self.embed_seq, zip(ids_ls, values_ls))
         return torch.stack(results)
-
+    # TODO: finish here
     def embed_seq(self, ids, values):
         codes = itemgetter(*ids)(self.main_inv_vocab)
         self.id_arr_ls = self.get_ids_from_codes(codes)
@@ -122,7 +120,6 @@ class StaticHierarchicalEmbedding(Embedding):
         """Initialize first index to be a zero vector"""
         for embedding in self.embedding_ls:
             embedding.weight.data[0] = torch.zeros(embedding.weight.data[0].shape)
-    
 
 class VisitEmbedding(Embedding):
     def __init__(self, embedding_dim:int, max_num_visits=500):

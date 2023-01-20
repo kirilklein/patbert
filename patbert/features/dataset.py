@@ -3,20 +3,22 @@ import torch
 from numpy.random import default_rng
 from torch.utils.data.dataset import Dataset
 
-from patbert.features import utils
-
 
 class MLM_PLOS_Dataset(Dataset):
-    def __init__(self, data, vocab, 
-            channels=['visits', 'abs_pos', 'ages', 'values'], 
-            mask_prob=.15, pad_len=None, plos=False):
+    def __init__(self, data, vocab, cfg):
         self.data = data
         self.vocab = vocab
-        self.channels = channels
-        self.plos = plos
-        self.init_pad_len(data, pad_len)
-        self.mask_prob = mask_prob
+        self.channels = cfg.data.channels
+        self.plos = cfg.data.plos
+        self.init_pad_len(data, cfg.data.max_seq_len)
+        self.mask_prob = cfg.data.mask_prob
         self.init_nonspecial_ids()
+        self.pad_tokens = {'idx':self.vocab['<PAD>'],
+                            'labels':-100,
+                            'abs_pos':0,
+                            'visits':0,
+                            'ages':0,
+                            'values':1,}
         
     def __getitem__(self, index):
         """
@@ -34,9 +36,9 @@ class MLM_PLOS_Dataset(Dataset):
         #pat_data['codes'] = codes
         pat_data['idx'] = ids
         pat_data['labels'] = labels
-        pad_tokens = [0, 0, 0, 1, -100, self.vocab['<PAD>']] # other channels need different padding
-        for channel, pad_token in zip(self.channels+['labels', 'idx'], pad_tokens):
-            out_dic[channel] = self.seq_padding(pat_data[channel], pad_token)    
+        for channel in self.channels+['labels', 'idx']:
+            out_dic[channel] = self.seq_padding(pat_data[channel], 
+                self.pad_tokens[channel])    
             #print(channel, out_dic[channel])    
             out_dic[channel] = torch.LongTensor(out_dic[channel])    
             
@@ -52,7 +54,6 @@ class MLM_PLOS_Dataset(Dataset):
         values = np.array(values)
         values[mask] = 1
         return values.tolist()
-
 
     def get_mask(self, pat_data):
         mask = np.ones(self.pad_len)

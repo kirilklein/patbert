@@ -1,6 +1,6 @@
 import json
 import os
-from os.path import join
+from os.path import join, dirname, realpath
 
 import numpy as np
 import torch
@@ -8,12 +8,13 @@ import torch.nn as nn
 from tqdm import tqdm
 from transformers import BertConfig, BertForPreTraining
 
-from patbert.common import pytorch
+from patbert.common import pytorch, common
 from patbert.models.trainers import CustomPreTrainer
 
 
 
 class Encoder(CustomPreTrainer):
+    """Produces encodings for a given dataset with a pretrained model"""
     def __init__(self, dataset, model_dir, pat_ids,
                 from_checkpoint=False, batch_size=128):
         self.model_dir = model_dir
@@ -88,6 +89,7 @@ class FCLayer(nn.Module):
         return x
 
 class ModelFC(nn.Module):
+    """A wrapper class for BERT model to add a fully connected layer on top of static embeddings"""
     """Insert a fully connected layer with nonlinearity on top of static embeddings before feeding into model"""
     def __init__(self, model, config):
         super(ModelFC, self).__init__()
@@ -102,6 +104,7 @@ class ModelFC(nn.Module):
 
 
 class Attention(Encoder):
+    """Used for visaulizing attention with bertviz"""
     def __init__(self, dataset, model_dir, pat_ids, 
                 from_checkpoint=False, batch_size=128):
         super().__init__(dataset, model_dir, pat_ids, from_checkpoint, batch_size)
@@ -145,3 +148,23 @@ class Attention(Encoder):
         np.savez(join(self.model_dir, 'encodings', 'encodings.npz'), 
                 **{'pat_ids':self.pat_ids, 'pat_vecs':pat_vecs})
         return self.pat_ids, pat_vecs
+
+def get_bert_for_pretraining(cfg):
+        """Loads or initializes a BertForPreTraining model
+        with a fully connected layer on top of static embeddings
+        Returns:
+            model, BertConfig"""
+        # configure model
+        vocab = common.load_data(cfg.data.name, vocab_only=True) 
+        bertconfig = BertConfig(vocab_size=len(vocab), **cfg.model)
+        if not cfg.model.load_model:
+            print("Initialize new model")
+            model = BertForPreTraining(bertconfig)
+            # get embedding dimension
+            model = ModelFC(model, bertconfig)
+        else:
+            print(f"Load saved model from {model_dir}")
+            model = torch.load(join(model_dir, 'model.pt'))
+        base_dir = dirname(dirname(dirname(realpath(__file__))))
+        model_dir = join(base_dir, 'models', cfg.model.name + '.pt')
+        return model, bertconfig 

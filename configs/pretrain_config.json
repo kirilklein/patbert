@@ -1,4 +1,5 @@
 {
+    "model_name":"test_model",
     "hidden_size":192,
     "num_hidden_layers":6,
     "num_attention_heads":6,

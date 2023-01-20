@@ -1,9 +1,6 @@
-import string
-
 import torch
 from torch import nn
 
-from patbert.features import embeddings
 
 # Define a vocabulary of 10 tokens
 vocab_size = 10

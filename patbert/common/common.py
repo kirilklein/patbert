@@ -40,10 +40,17 @@ def get_last_nonzero_idx(x, axis):
     last_nonzero[~any_mask] = -1
     return last_nonzero
 
-def load_data(data_name):
+def load_data(data_name, vocab_only=False):
     """Loads data and vocab from data folder"""
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     data_dir = join(base_dir, 'data')
-    data = torch.load(join(data_dir, 'tokenized', data_name + '.pt'))
     vocab = torch.load(join(data_dir, 'vocabs', data_name + '.pt'))
+    if vocab_only:
+        return vocab
+    data = torch.load(join(data_dir, 'tokenized', data_name + '.pt'))
+    if os.path.exists(join(data_dir, 'hierarchy_vocabs', data_name +'.pt')):
+        int2int = torch.load(join(data_dir, 'hierarchy_vocabs', \
+            data_name + '.pt'))
+        return data, vocab, int2int
     return data, vocab
+
