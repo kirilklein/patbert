@@ -39,8 +39,11 @@ class CustomPreTrainer(Trainer):
         self.trainloader, self.valloader = self.get_dataloaders()
         if self.cfg.data.embedding_type=='static':
             self.main_embedding = StaticHierarchicalEmbedding(
-                    self.vocab, self.int2int,
-                    embedding_dim=self.cfg.data.hidden_size)
+                    self.vocab, self.int2int, 
+                    embedding_dim=self.cfg.model.hidden_size,
+                    kappa = self.cfg.model.embedding.kappa,
+                    alpha = self.cfg.model.embedding.alpha,
+                    )
         else:
             raise NotImplementedError
         self.pos_embeddings = embeddings.get_positional_embeddings(
@@ -48,22 +51,23 @@ class CustomPreTrainer(Trainer):
         self.add_params = embeddings.get_add_params(self.cfg.data.channels)
         
     def __call__(self):
-        if self.from_checkpoint:
+        if self.cfg.training.from_checkpoint:
             self.model, self.optim = self.load_from_checkpoint(self.model, self.optim)
         self.model.to(self.device) # and move our model over to the selected device
         self.model.train() # activate training mode  
         for epoch in range(self.epochs):
             train_loop = tqdm(self.trainloader, leave=True)
-            for i, batch in enumerate(train_loop):
-                train_loss = self.optimizer_step(epoch, i, batch, train_loop)
+            for i, train_batch in enumerate(train_loop):
+                train_loss = self.optimizer_step(train_batch, train_loop,
+                    self.trainloader,epoch, i,  validation=False)
             # validation    
             val_loop = tqdm(self.valloader, leave=True)
             self.model.eval()
             val_loss_avg = 0
             with torch.no_grad():
-                for val_batch in val_loop:
-                    val_loss, val_loss_avg = self.optimizer_step(val_batch, val_loop, valloader, 
-                        validation=True, loss_avg=val_loss_avg)
+                for j, val_batch in enumerate(val_loop):
+                    val_loss, val_loss_avg = self.optimizer_step(val_batch, val_loop, 
+                        self.valloader, epoch, j, validation=True, loss_avg=val_loss_avg)
             self.save_history(epoch, i, train_loss.item(), val_loss_avg) # type: ignore
             if epoch%self.checkpoint_freq==0:
                 print("Checkpoint")
@@ -72,7 +76,7 @@ class CustomPreTrainer(Trainer):
             # TODO: introduce training scheduler
 
 
-    def optimizer_step(self, batch, loop, epoch, i, loader, 
+    def optimizer_step(self, batch, loop, loader, epoch, batch_num,  
         validation=False, loss_avg=0):
         # initialize calculated grads
         if not validation:
@@ -100,7 +104,7 @@ class CustomPreTrainer(Trainer):
             self.optim.step()
             loop.set_description(f"epoch {epoch}/{self.epochs} Training")
             loop.set_postfix(loss=loss.item())
-            self.save_history(epoch, i, loss.item())  
+            self.save_history(epoch, batch_num, loss.item())  
             return loss   
         
     def get_dataloaders(self):

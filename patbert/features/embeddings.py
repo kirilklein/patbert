@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from patbert.common import common, medical
+from patbert.features import utils
 from multiprocessing import Pool    
 
 class Embedding(nn.Embedding):
@@ -18,7 +19,7 @@ class Embedding(nn.Embedding):
             return super(Embedding, self).forward(input)
 
 class StaticHierarchicalEmbedding(Embedding):
-    def __init__(self, vocab, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
+    def __init__(self, vocab, int2int, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
             alpha_trainable:bool=False, kappa_trainable:bool=False, fully_trainable_scaling=False):
         """
         kappa: exponent to make vectors shorter with each hierarchy level
@@ -27,6 +28,7 @@ class StaticHierarchicalEmbedding(Embedding):
         self.embedding_dim = embedding_dim
         self.sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
         self.vocabs = self.sks()
+        self.int2int = int2int
         self.num_levels = num_levels
         self.fully_trainable_scaling = fully_trainable_scaling
         self.main_inv_vocab = {v:k for k,v in vocab.items()}
@@ -43,24 +45,19 @@ class StaticHierarchicalEmbedding(Embedding):
         """Outputs a tensor of shape levels x len x emb_dim"""
         if values is None:
             values = torch.ones_like(ids)
-        if len(ids)!=len(values):
+        if ids.shape[1]!=values.shape[1]:
             raise ValueError("Codes and values must have the same length")
         print('ids type', type(ids))
         print('values type', type(values))
         print('ids shape', ids.shape)
         print('values shape', values.shape)
         #assert False
-        ids_ls = ids.tolist()
-        values_ls = values.tolist()
-        with Pool(5) as p:
-            results = p.starmap(self.embed_seq, zip(ids_ls, values_ls))
-        return torch.stack(results)
-    # TODO: finish here
-    def embed_seq(self, ids, values):
-        codes = itemgetter(*ids)(self.main_inv_vocab)
-        self.id_arr_ls = self.get_ids_from_codes(codes)
+        self.id_arr_ls = []
+        for dic in self.int2int: # we get one batch of ids for each level
+            self.id_arr_ls.append(utils.remap_values(dic, ids))
         self.embedding_mat = self.get_embedding_mat()
         self.scale_embedding_mat()
+        print('embedding mat shape ' , self.embedding_mat.shape)
         self.multiply_embedding_mat_by_values(values)
         return self.embedding_mat
 
@@ -81,8 +78,9 @@ class StaticHierarchicalEmbedding(Embedding):
         level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa) 
         if self.fully_trainable_scaling:
             level_mult.requires_grad = True
-        self.embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1)*self.embedding_mat
+        self.embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)*self.embedding_mat
         
+    
     def get_embedding_mat(self):
         """Returns a tensor of shape levels x len x emb_dim"""
         arr_ls = []
@@ -108,14 +106,17 @@ class StaticHierarchicalEmbedding(Embedding):
 
     @staticmethod
     def get_value_mat(id_arr_ls, values):
-        if isinstance(values, type(list)):
-            values = torch.tensor(values)
         id_arr = torch.from_numpy(np.stack(id_arr_ls))
         value_mat = torch.ones_like(id_arr).to(torch.float64)
         last_non_zero = common.get_last_nonzero_idx(id_arr,0)
         ids1 = torch.arange(len(last_non_zero))
-        value_mat[last_non_zero, ids1] = values.to(value_mat.dtype)
+        print('values', len(values))
+        print('values shape', values.shape)
+        print('value mat shape', value_mat.shape)
+        # TODO: figure this out
+        value_mat[last_non_zero, :, ids1] = values.to(value_mat.dtype)
         return value_mat
+
     def set_zero_weight(self):
         """Initialize first index to be a zero vector"""
         for embedding in self.embedding_ls:
@@ -171,6 +172,8 @@ def get_positional_embeddings(channels, embedding_dim):
             pos_embeddings[c] = Time2Vec(embedding_dim)
         elif c=='visits':
             pos_embeddings[c] = VisitEmbedding(embedding_dim)
+        elif c == 'values':
+            pass
         else:
             raise ValueError(f"Channel {c} not supported")
     return pos_embeddings

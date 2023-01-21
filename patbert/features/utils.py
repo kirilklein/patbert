@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import default_rng
-
+import torch
 from patbert.common import medical
 
 def random_mask(idxs, vocab, mask_prob=0.15,
@@ -27,6 +27,29 @@ def random_mask(idxs, vocab, mask_prob=0.15,
             # 10% keep original
             labels[i] = idx
     return masked_idxs, labels
+
+def seq_padding(seq, max_len, vocab):
+    """Pad a sequence to the given length."""
+    return seq + (max_len-len(seq)) * [vocab['<PAD>']]
+
+def get_int2int_dic_for_hembedings(vocab, num_levels=6):
+    """Construct an ontology mapping from the vocab.
+        where each integer in the vocab is mapped to a list of integers
+        in the hierarchical tokenization of the vocab."""
+    sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
+    vocabs = sks()
+    list_of_dicts = [{} for _ in range(len(vocabs))]
+    for k, v in vocab.items():
+        for int2int, vocab in zip(list_of_dicts, vocabs):
+            int2int[v] = vocab[k]
+    return list_of_dicts
+
+
+def remap_values(dic:dict, x:torch.Tensor)->torch.Tensor:
+    remapping = torch.LongTensor(list(dic.keys())), torch.LongTensor(list(dic.values()))
+    index = torch.bucketize(x.ravel(), remapping[0])
+    return remapping[1][index].reshape(x.shape)
+
 
 
 def combine_masks(mask1, mask2):
@@ -67,24 +90,3 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
     masked_idxs[replace_mask] = rng.choice(list(vocab.values()), 
         size=replace_mask.sum())
     return masked_idxs, labels
-
-def seq_padding(seq, max_len, vocab):
-    """Pad a sequence to the given length."""
-    return seq + (max_len-len(seq)) * [vocab['<PAD>']]
-
-#TODO torch.utils.data.random_split
-
-def get_int2int_dic_for_hembedings(vocab, num_levels=6):
-    """Construct an ontology mapping from the vocab.
-        where each integer in the vocab is mapped to a list of integers
-        in the hierarchical tokenization of the vocab."""
-    sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
-    vocabs = sks()
-    # for i, vocab in enumerate(vocabs):
-        # print(i)
-        # print({k:v for i,(k,v) in enumerate(vocab.items()) if k.startswith('<')})
-    list_of_dicts = [{} for _ in range(len(vocabs))]
-    for k, v in vocab.items():
-        for int2int, vocab in zip(list_of_dicts, vocabs):
-            int2int[v] = vocab[k]
-    return list_of_dicts

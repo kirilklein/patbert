@@ -18,10 +18,12 @@ model:
     intermediate_size: 64
     hidden_dropout_prob: 0
     validation_size: 0.1
+    embedding: 
+        kappa: 3
+        alpha: 20
 data:
     name: synthetic
-    max_len: 100
-    embeding_type: static
+    embedding_type: static
     channels: 
         - visits 
         - abs_pos

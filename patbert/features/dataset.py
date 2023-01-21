@@ -10,7 +10,7 @@ class MLM_PLOS_Dataset(Dataset):
         self.vocab = vocab
         self.channels = cfg.data.channels
         self.plos = cfg.data.plos
-        self.init_pad_len(data, cfg.data.max_seq_len)
+        self.init_pad_len(data, cfg.data.pad_len)
         self.mask_prob = cfg.data.mask_prob
         self.init_nonspecial_ids()
         self.pad_tokens = {'idx':self.vocab['<PAD>'],
