@@ -106,16 +106,16 @@ class StaticHierarchicalEmbedding(Embedding):
 
     @staticmethod
     def get_value_mat(id_arr_ls, values):
-        id_arr = torch.from_numpy(np.stack(id_arr_ls))
-        value_mat = torch.ones_like(id_arr).to(torch.float64)
-        last_non_zero = common.get_last_nonzero_idx(id_arr,0)
-        ids1 = torch.arange(len(last_non_zero))
-        print('values', len(values))
+        id_tsr = torch.from_numpy(np.stack(id_arr_ls))
+        value_tsr = torch.ones_like(id_tsr).to(torch.float64)
+        values = values.to(value_tsr.dtype)
+        last_non_zero = common.get_last_nonzero_idx(id_tsr,0)
         print('values shape', values.shape)
-        print('value mat shape', value_mat.shape)
-        # TODO: figure this out
-        value_mat[last_non_zero, :, ids1] = values.to(value_mat.dtype)
-        return value_mat
+        print('value mat shape', value_tsr.shape)
+        print('last nonzero', last_non_zero.shape)
+        # TODO: change -1 to last index
+        value_tsr = value_tsr.scatter(0, last_non_zero.unsqueeze(0), values.unsqueeze(0))
+        return value_tsr
 
     def set_zero_weight(self):
         """Initialize first index to be a zero vector"""

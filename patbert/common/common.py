@@ -37,7 +37,7 @@ def get_last_nonzero_idx(x, axis):
     mask = (x == 0).to(int)
     last_nonzero = torch.argmax(mask, dim=axis)-1
     any_mask = torch.any(mask, dim=axis)
-    last_nonzero[~any_mask] = -1
+    last_nonzero[~any_mask] = x.shape[axis]-1 # last element along this axis
     return last_nonzero
 
 def load_data(data_name, vocab_only=False):
