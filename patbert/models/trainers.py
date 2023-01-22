@@ -1,21 +1,17 @@
 import json
 import os
-from os.path import join, dirname, realpath
+from os.path import dirname, join, realpath
 
 import torch
+from omegaconf import open_dict
+from torch.utils.data import random_split
 from tqdm import tqdm
 from transformers import Trainer
 
 from patbert.common import common, pytorch
-from patbert.features.embeddings import StaticHierarchicalEmbedding
-
 from patbert.features import embeddings
 from patbert.features.dataset import MLM_PLOS_Dataset
-from torch.utils.data import random_split
-
-from hydra.utils import instantiate
-from omegaconf import open_dict
-
+from patbert.features.embeddings import StaticHierarchicalEmbedding
 
 
 class CustomPreTrainer(Trainer):
@@ -83,11 +79,13 @@ class CustomPreTrainer(Trainer):
             self.optim.zero_grad()
         batch = pytorch.batch_to_device(batch, self.device)
         #TODO: the dataloader has to produce static embeddings batchwise
-        input_tensor = self.main_embedding(batch['idx'], batch['values'])
+        input_tsr = self.main_embedding(batch['idx'], batch['values'])
+        print(input_tsr.shape)
+        assert False
         for c in self.cfg.data.channels:
-            input_tensor += self.add_params[c] * self.pos_embeddings[c](batch[c])
+            input_tsr += self.add_params[c] * self.pos_embeddings[c](batch[c])
         # process
-        outputs = self.model(inputs_embeds=input_tensor, 
+        outputs = self.model(inputs_embeds=input_tsr, 
                     attention_mask=batch['attention_mask'], 
                     labels=batch['labels'],
                     )

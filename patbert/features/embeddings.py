@@ -41,25 +41,21 @@ class StaticHierarchicalEmbedding(Embedding):
         self.embedding_ls = self.initialize_static_embeddings()
         self.set_zero_weight()
         self.set_to_static()
+
     def __call__(self, ids, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
         if values is None:
             values = torch.ones_like(ids)
         if ids.shape[1]!=values.shape[1]:
             raise ValueError("Codes and values must have the same length")
-        print('ids type', type(ids))
-        print('values type', type(values))
-        print('ids shape', ids.shape)
-        print('values shape', values.shape)
         #assert False
         self.id_arr_ls = []
         for dic in self.int2int: # we get one batch of ids for each level
             self.id_arr_ls.append(utils.remap_values(dic, ids))
-        self.embedding_mat = self.get_embedding_mat()
-        self.scale_embedding_mat()
-        print('embedding mat shape ' , self.embedding_mat.shape)
-        self.multiply_embedding_mat_by_values(values)
-        return self.embedding_mat
+        self.embedding_tsr = self.get_embedding_tsr()
+        self.scale_embedding_tsr()
+        self.multiply_embedding_tsr_by_values(values)
+        return self.embedding_tsr
 
     def initialize_static_embeddings(self):
         embedding_ls = [] # TODO: think about vectorizing
@@ -67,53 +63,44 @@ class StaticHierarchicalEmbedding(Embedding):
             embedding_ls.append(Embedding(len(vocab), self.embedding_dim))
         return embedding_ls
 
-    def multiply_embedding_mat_by_values(self, values):
-        """Multiply embedding_mat by values"""
-        value_mat = self.get_value_mat(self.id_arr_ls, values)
-        self.embedding_mat *= value_mat.unsqueeze(-1)
+    def multiply_embedding_tsr_by_values(self, values):
+        """Multiply embedding tensor by value at the right hierarchy level"""
+        value_tsr = self.get_value_tsr(self.id_arr_ls, values)
+        self.embedding_tsr *= value_tsr.unsqueeze(-1)
 
-    def scale_embedding_mat(self):
+    def scale_embedding_tsr(self):
         """Scale embedding_mat to have decreasing length with each level of hierarchy"""
         # shorter vectors at lower levels of hierarchy
         level_mult = 1/(torch.arange(1, self.num_levels+1)**self.kappa) 
         if self.fully_trainable_scaling:
             level_mult.requires_grad = True
-        self.embedding_mat = level_mult.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)*self.embedding_mat
+        self.embedding_tsr = level_mult.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)*self.embedding_tsr
         
     
-    def get_embedding_mat(self):
+    def get_embedding_tsr(self):
         """Returns a tensor of shape levels x len x emb_dim"""
         arr_ls = []
+        # TODO: we should get rid of this for loop
         for id_arr, embedding in zip(self.id_arr_ls, self.embedding_ls):
             arr = embedding(torch.LongTensor(id_arr))
             lens = torch.norm(arr, dim=0)
             arr  = (arr * self.alpha)/lens          
             arr_ls.append(arr) 
         # concatenate arr_ls to get 3d tensor
-        embedding_mat = torch.stack(arr_ls) 
-        return embedding_mat
+        embedding_tsr = torch.stack(arr_ls) 
+        return embedding_tsr
 
     def set_to_static(self):
         for embedding in self.embedding_ls:
             embedding.weight.requires_grad = False
 
-    def get_ids_from_codes(self, codes):
-        id_arr_ls = [] # TODO: think about vectorizing
-        codes = np.array(codes, dtype='str')
-        for vocab in self.vocabs:
-            id_arr_ls.append(np.vectorize(lambda x: vocab.get(x, 0))(codes))
-        return id_arr_ls
-
     @staticmethod
-    def get_value_mat(id_arr_ls, values):
+    def get_value_tsr(id_arr_ls, values):
+        """Store values in a tensor of shape id_tsr"""
         id_tsr = torch.from_numpy(np.stack(id_arr_ls))
         value_tsr = torch.ones_like(id_tsr).to(torch.float64)
         values = values.to(value_tsr.dtype)
         last_non_zero = common.get_last_nonzero_idx(id_tsr,0)
-        print('values shape', values.shape)
-        print('value mat shape', value_tsr.shape)
-        print('last nonzero', last_non_zero.shape)
-        # TODO: change -1 to last index
         value_tsr = value_tsr.scatter(0, last_non_zero.unsqueeze(0), values.unsqueeze(0))
         return value_tsr
 
@@ -121,6 +108,7 @@ class StaticHierarchicalEmbedding(Embedding):
         """Initialize first index to be a zero vector"""
         for embedding in self.embedding_ls:
             embedding.weight.data[0] = torch.zeros(embedding.weight.data[0].shape)
+
 
 class VisitEmbedding(Embedding):
     def __init__(self, embedding_dim:int, max_num_visits=500):
