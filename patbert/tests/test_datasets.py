@@ -1,7 +1,7 @@
 from patbert.common import common
 from patbert.features.dataset import MLM_PLOS_Dataset
 
-data, vocab = common.load_data('synthetic')
+data, vocab, _ = common.load_data('synthetic')
 
 def test_mlm_plos():
     dataset = MLM_PLOS_Dataset(data, vocab, mask_prob=0.5)
