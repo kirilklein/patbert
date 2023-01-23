@@ -110,9 +110,9 @@ def create_tokenized_data(cfg):
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     tokenized_dir = join(base_dir, 'data', 'tokenized')
     data_name = cfg.data.name
-    data = common.load_processed_data(data_name)
+    proc_data = common.Data(cfg).load_processed_data()
     Tokenizer = tokenizer.EHRTokenizer(max_len=cfg.data.max_len,)
-    tokenized_seq = Tokenizer.batch_encode(data)
+    tokenized_seq = Tokenizer.batch_encode(proc_data)
     torch.save(tokenized_seq, join(tokenized_dir, data_name + '.pt'))
     Tokenizer.save_vocab(join(tokenized_dir, data_name + '_vocab.pt'))
     if cfg.embeddings.hierarchical:

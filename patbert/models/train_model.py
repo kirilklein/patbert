@@ -18,9 +18,10 @@ def my_app(cfg: DictConfig) -> None:
     model, model_cfg = utils.get_model(cfg)
     cfg = OmegaConf.create(cfg)
     OmegaConf.set_struct(cfg, False)
-    # opt = hydra.utils.instantiate(cfg.training.optimizer)
-    trainer = utils.CustomPreTrainer(data, model, cfg, model_cfg)
-    trainer()
+    opt = hydra.utils.instantiate(cfg.training.optimizer)
+    print(opt)
+    #trainer = utils.CustomPreTrainer(data, model, cfg, model_cfg)
+    #trainer()
     # trainer.save_model()
 
 if __name__=='__main__':

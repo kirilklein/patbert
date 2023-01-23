@@ -3,7 +3,7 @@ training:
     epochs: 1
     checkpoint_frequency: 1
     optimizer:
-        _target_: my_app.AdamH
+        _target_: my_app.Adam
         lr: 0.00001
     from_checkpoint: false        
     validation_size: 0.1

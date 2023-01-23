@@ -5,6 +5,7 @@ import pickle as pkl
 import numpy as np
 import torch
 
+from patbert.features import utils
 
 def create_directory(path):
     if not os.path.exists(path):
@@ -42,28 +43,41 @@ def get_last_nonzero_idx(x, axis):
     return last_nonzero
 
 
+def load_data(cfg):
+    return Data(cfg).get_tokenized_data()
+
 class Data:
     def __init__(self, cfg):
         self.cfg = cfg
         self.data_name = cfg.data.name
         self.data_dir = self.get_data_dir()   
 
-    def load_tokenized_data(self, vocab_only=False):
-        """Loads data and vocab from data folder"""
-        vocab = torch.load(join(self.data_dir, 'vocabs', self.data_name + '.pt'))
+    def get_tokenized_data(self, vocab_only=False):
+        """Loads or creates tokenized data"""
+        tok_dir = join(self.data_dir, 'tokenized')
+        tok_files = os.listdir(tok_dir)
+        if self.data_name +  '_vocab.pt' in tok_files \
+            and self.data_name + '.pt' in tok_files:
+            return self.load_tokenized_data(vocab_only)
+        else:
+            return utils.create_tokenized_data(self.cfg)
+        
+    def load_tokenized_data(self, vocab_only):
+        tok_dir = join(self.data_dir, 'tokenized')
+        vocab = torch.load(join(tok_dir, self.data_name +  '_vocab.pt'))
         if vocab_only:
             return vocab
-        data = torch.load(join(self.data_dir, 'tokenized', self.data_name + '.pt'))
-        if os.path.exists(join(self.data_dir, 'hierarchy_vocabs', self.data_name +'.pt')):
-            int2int = torch.load(join(self.data_dir, 'hierarchy_vocabs', \
-                self.data_name + '.pt'))
+        data = torch.load(join(tok_dir, self.data_name + '.pt'))
+        if os.path.exists(join(tok_dir,  self.data_name +'_hierarchy_mapping.pt')):
+            int2int = torch.load(join(tok_dir, \
+                self.data_name +'_hierarchy_mapping.pt'))
             return data, vocab, int2int
         return data, vocab
 
     def load_processed_data(self):
         """Loads processed data from data_dir, either default or specified in config""" 
         try:
-            with open(join(self.data_dir, 'processed' , self.data_name + '.pkl'), 'rb')as f:
+            with open(join(self.data_dir, 'processed', self.data_name + '.pkl'), 'rb')as f:
                 return pkl.load(f)
         except:
             try:
