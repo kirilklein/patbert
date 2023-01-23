@@ -41,7 +41,7 @@ class CustomPreTrainer(Trainer):
         self.train_dataset, self.val_dataset = self.split_train_val(dataset)
         self.trainloader, self.valloader = self.get_dataloaders()
         
-        if self.cfg.data.embedding_type=='static':
+        if self.cfg.model.embedding.type=='static':
             self.main_embedding = StaticHierarchicalEmbedding(data, cfg)
         else:
             raise NotImplementedError

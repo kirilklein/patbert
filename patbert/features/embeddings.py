@@ -1,12 +1,9 @@
-from operator import itemgetter
-
 import numpy as np
 import torch
 from torch import nn
 
 from patbert.common import common, medical
 from patbert.features import utils
-from multiprocessing import Pool    
 
 class Embedding(nn.Embedding):
     """Modifying the embedding module to handle integer input as well"""
@@ -18,26 +15,31 @@ class Embedding(nn.Embedding):
             # handle tensor input
             return super(Embedding, self).forward(input)
 
+
 class StaticHierarchicalEmbedding(Embedding):
-    def __init__(self, vocab, int2int, embedding_dim:int, num_levels:int=6, kappa:int=3, alpha:int=20,
-            alpha_trainable:bool=False, kappa_trainable:bool=False, fully_trainable_scaling=False):
+    def __init__(self, data, cfg):
         """
         kappa: exponent to make vectors shorter with each hierarchy level
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
         # TODO: make fully trainable scaling
-        self.embedding_dim = embedding_dim
-        self.sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
+    
+        self.embedding_dim = cfg.model.embedding_dim
+        self.num_levels = cfg.model.num_levels
+        self.sks = medical.SKSVocabConstructor(vocab, num_levels=self.num_levels)
         self.vocabs = self.sks()
-        self.int2int = int2int
-        self.num_levels = num_levels
-        self.fully_trainable_scaling = fully_trainable_scaling
-        self.main_inv_vocab = {v:k for k,v in vocab.items()}
+        _ , vocab, self.int2int = data
+    
+        self.fully_trainable_scaling = cfg.model.embedding.fully_trainable_scaling
+
         if self.fully_trainable_scaling:
-            self.kappa = kappa
-            self.alpha = alpha
+            self.kappa = cfg.model.embedding.kappa
+            self.alpha = cfg.model.embedding.alpha
         else:
-            self.kappa = torch.tensor(float(kappa), requires_grad=kappa_trainable)
-            self.alpha = torch.tensor(float(alpha), requires_grad=alpha_trainable)
+            self.kappa = torch.tensor(float(cfg.model.embedding.kappa), 
+                requires_grad=cfg.model.embedding.kappa_trainable)
+            self.alpha = torch.tensor(float(cfg.model.embedding.alpha), 
+                requires_grad=cfg.model.embedding.alpha_trainable)
+
         self.embedding_ls = self.initialize_static_embeddings()
         self.set_zero_weight()
         self.set_to_static()

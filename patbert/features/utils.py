@@ -1,7 +1,11 @@
 import numpy as np
 from numpy.random import default_rng
+from os.path import join, dirname, realpath
 import torch
-from patbert.common import medical
+from patbert.common import medical, common
+from patbert.features import tokenizer
+import pickle as pkl
+
 
 def random_mask(idxs, vocab, mask_prob=0.15,
     special_tokens=['<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', ], seed=0):
@@ -90,3 +94,30 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
     masked_idxs[replace_mask] = rng.choice(list(vocab.values()), 
         size=replace_mask.sum())
     return masked_idxs, labels
+    
+
+def get_data(cfg):
+    """Loads processed data, performs tokenization and loads the tokenized data"""
+    try:
+        data = common.load_tokenized_data(cfg)
+    except:
+        # TODO we need to improve this by using hydra API
+        data = create_tokenized_data(cfg)
+    return data
+    
+def create_tokenized_data(cfg):
+    """Creates tokenized data from processed data and saves it"""
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
+    tokenized_dir = join(base_dir, 'data', 'tokenized')
+    data_name = cfg.data.name
+    data = common.load_processed_data(data_name)
+    Tokenizer = tokenizer.EHRTokenizer(max_len=cfg.data.max_len,)
+    tokenized_seq = Tokenizer.batch_encode(data)
+    torch.save(tokenized_seq, join(tokenized_dir, data_name + '.pt'))
+    Tokenizer.save_vocab(join(tokenized_dir, data_name + '_vocab.pt'))
+    if cfg.embeddings.hierarchical:
+        int2int  = get_int2int_dic_for_hembedings(
+            Tokenizer.vocabulary, num_levels=cfg.embeddings.num_levels)
+        torch.save(int2int, join(tokenized_dir, data_name + '_hierarchy_mapping.pt'))
+    data = tokenized_seq, Tokenizer.vocabulary, int2int
+    return data

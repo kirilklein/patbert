@@ -13,9 +13,9 @@ config_path = join(base_dir, 'configs')
 
 @hydra.main(version_base=None, config_path=config_path, config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
-    
+
     data = common.load_data(cfg)
-    model, model_cfg = utils.get_get_model(cfg)
+    model, model_cfg = utils.get_model(cfg)
     cfg = OmegaConf.create(cfg)
     OmegaConf.set_struct(cfg, False)
     # opt = hydra.utils.instantiate(cfg.training.optimizer)

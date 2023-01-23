@@ -1,6 +1,7 @@
 import os
 from os.path import dirname, join, realpath
 
+import pickle as pkl
 import numpy as np
 import torch
 
@@ -40,7 +41,7 @@ def get_last_nonzero_idx(x, axis):
     last_nonzero[~any_mask] = x.shape[axis]-1 # last element along this axis
     return last_nonzero
 
-def load_data(data_name, vocab_only=False):
+def load_tokenized_data(data_name, vocab_only=False):
     """Loads data and vocab from data folder"""
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     data_dir = join(base_dir, 'data')
@@ -54,3 +55,17 @@ def load_data(data_name, vocab_only=False):
         return data, vocab, int2int
     return data, vocab
 
+def load_processed_data(data_name):
+    """Loads data from data folder""" 
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
+    data_dir = join(base_dir, 'data', 'processed')
+    try:
+        with open(join(data_dir, 'processed' , data_name + '.pkl'), 'rb')as f:
+            return pkl.load(f)
+    except:
+        try:
+            return torch.load(join(data_dir, 'processed', data_name + '.pt'))
+        except:
+            raise ValueError(f"Could not find {data_name} in {data_dir}")
+            
+    
