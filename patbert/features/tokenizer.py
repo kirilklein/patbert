@@ -161,17 +161,23 @@ def main(
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     data_dir = join(base_dir, 'data')
-    with open(join(data_dir, 'raw' , input_data + '.pkl'), 'rb')as f:
-        data = pkl.load(f)
+    try:
+        with open(join(data_dir, 'processed' , input_data + '.pkl'), 'rb')as f:
+            data = pkl.load(f)
+    except:
+        try:
+            data = torch.load(join(data_dir, 'processed' , input_data + '.pt'))
+        except:
+            raise ValueError(f"Could not find {input_data} in {data_dir}")
 
     Tokenizer = EHRTokenizer(max_len=max_len)
     tokenized_data_dic = Tokenizer.batch_encode(data)
     if isinstance(vocab_save_path, type(None)):
-        vocab_save_path = join(data_dir, 'vocabs', input_data + '.pt')
+        vocab_save_path = join(data_dir, 'tokenized', input_data + '.pt')
     if isinstance(out_data_path, type(None)):
-        out_data_path = join(data_dir, 'tokenized', input_data + '.pt')
+        out_data_path = join(data_dir, 'tokenized', input_data + '_vocab.pt')
     if isinstance(int2int_save_path, type(None)):
-        int2int_save_path = join(data_dir, 'hierarchy_vocabs', input_data + '.pt')
+        int2int_save_path = join(data_dir, 'tokenized', input_data + '_hierarchy_mapping.pt')
     print(f"Save tokenized data to {out_data_path}")
     Tokenizer.save_vocab(vocab_save_path)
     torch.save(tokenized_data_dic, out_data_path)
