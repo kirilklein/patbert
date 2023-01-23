@@ -41,39 +41,41 @@ def get_last_nonzero_idx(x, axis):
     last_nonzero[~any_mask] = x.shape[axis]-1 # last element along this axis
     return last_nonzero
 
-def load_tokenized_data(cfg, vocab_only=False):
-    """Loads data and vocab from data folder"""
-    data_dir = get_data_dir(cfg)
-    data_name = cfg.data.name
-    vocab = torch.load(join(data_dir, 'vocabs', data_name + '.pt'))
-    if vocab_only:
-        return vocab
-    data = torch.load(join(data_dir, 'tokenized', data_name + '.pt'))
-    if os.path.exists(join(data_dir, 'hierarchy_vocabs', data_name +'.pt')):
-        int2int = torch.load(join(data_dir, 'hierarchy_vocabs', \
-            data_name + '.pt'))
-        return data, vocab, int2int
-    return data, vocab
 
-def load_processed_data(cfg):
-    """Loads data from data folder""" 
-    data_dir = get_data_dir(cfg)
-    data_name = cfg.data.name
-    try:
-        with open(join(data_dir, 'processed' , data_name + '.pkl'), 'rb')as f:
-            return pkl.load(f)
-    except:
+class Data:
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.data_name = cfg.data.name
+        self.data_dir = self.get_data_dir()   
+
+    def load_tokenized_data(self, vocab_only=False):
+        """Loads data and vocab from data folder"""
+        vocab = torch.load(join(self.data_dir, 'vocabs', self.data_name + '.pt'))
+        if vocab_only:
+            return vocab
+        data = torch.load(join(self.data_dir, 'tokenized', self.data_name + '.pt'))
+        if os.path.exists(join(self.data_dir, 'hierarchy_vocabs', self.data_name +'.pt')):
+            int2int = torch.load(join(self.data_dir, 'hierarchy_vocabs', \
+                self.data_name + '.pt'))
+            return data, vocab, int2int
+        return data, vocab
+
+    def load_processed_data(self):
+        """Loads processed data from data_dir, either default or specified in config""" 
         try:
-            return torch.load(join(data_dir, 'processed', data_name + '.pt'))
+            with open(join(self.data_dir, 'processed' , self.data_name + '.pkl'), 'rb')as f:
+                return pkl.load(f)
         except:
-            raise ValueError(f"Could not find {data_name} in {data_dir}")
-            
+            try:
+                return torch.load(join(self.data_dir, 'processed', self.data_name + '.pt'))
+            except:
+                raise ValueError(f"Could not find {self.data_name} in {self.data_dir}")
     
-def get_data_dir(cfg):
-    """Returns data directory"""
-    if isinstance(cfg.data.dir, type(None)):
-        base_dir = dirname(dirname(dirname(realpath(__file__))))
-        data_dir = join(base_dir, 'data')
-    else:
-        data_dir = cfg.data.dir
-    return data_dir
+    def get_data_dir(self):
+        """Returns data directory"""
+        if isinstance(self.cfg.data.dir, type(None)):
+            base_dir = dirname(dirname(dirname(realpath(__file__))))
+            data_dir = join(base_dir, 'data')
+        else:
+            data_dir = self.cfg.data.dir
+        return data_dir

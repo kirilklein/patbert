@@ -155,7 +155,7 @@ def get_bert_for_pretraining(cfg):
         Returns:
             model, BertConfig"""
         # configure model
-        vocab = common.load_data(cfg.data.name, vocab_only=True) 
+        vocab = common.Data(cfg).load_tokenized_data(vocab_only=True) 
         bertconfig = BertConfig(vocab_size=len(vocab), **cfg.model)
         if not cfg.model.load_model:
             print("Initialize new model")
@@ -172,7 +172,7 @@ def get_bert_for_pretraining(cfg):
 def get_model(cfg):
     # TODO we need to improve this by using hydra API
     if cfg.model.name == 'bert':
-        model, bertconfig = get_bert_for_pretraining(cfg)
+        return get_bert_for_pretraining(cfg)
     else:
         raise ValueError(f"Model {cfg.model.name} not supported")
 
