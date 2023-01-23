@@ -41,10 +41,10 @@ def get_last_nonzero_idx(x, axis):
     last_nonzero[~any_mask] = x.shape[axis]-1 # last element along this axis
     return last_nonzero
 
-def load_tokenized_data(data_name, vocab_only=False):
+def load_tokenized_data(cfg, vocab_only=False):
     """Loads data and vocab from data folder"""
-    base_dir = dirname(dirname(dirname(realpath(__file__))))
-    data_dir = join(base_dir, 'data')
+    data_dir = get_data_dir(cfg)
+    data_name = cfg.data.name
     vocab = torch.load(join(data_dir, 'vocabs', data_name + '.pt'))
     if vocab_only:
         return vocab
@@ -55,10 +55,10 @@ def load_tokenized_data(data_name, vocab_only=False):
         return data, vocab, int2int
     return data, vocab
 
-def load_processed_data(data_name):
+def load_processed_data(cfg):
     """Loads data from data folder""" 
-    base_dir = dirname(dirname(dirname(realpath(__file__))))
-    data_dir = join(base_dir, 'data', 'processed')
+    data_dir = get_data_dir(cfg)
+    data_name = cfg.data.name
     try:
         with open(join(data_dir, 'processed' , data_name + '.pkl'), 'rb')as f:
             return pkl.load(f)
@@ -69,3 +69,11 @@ def load_processed_data(data_name):
             raise ValueError(f"Could not find {data_name} in {data_dir}")
             
     
+def get_data_dir(cfg):
+    """Returns data directory"""
+    if isinstance(cfg.data.dir, type(None)):
+        base_dir = dirname(dirname(dirname(realpath(__file__))))
+        data_dir = join(base_dir, 'data')
+    else:
+        data_dir = cfg.data.dir
+    return data_dir

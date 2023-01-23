@@ -27,7 +27,7 @@ model:
         fully_trainable_scaling: false
         
 data:
-    dir: none  
+    dir: null
     name: synthetic
     channels: 
         - visits 
