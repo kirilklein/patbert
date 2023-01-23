@@ -166,7 +166,7 @@ def get_bert_for_pretraining(cfg):
             print(f"Load saved model from {model_dir}")
             model = torch.load(join(model_dir, 'model.pt'))
         base_dir = dirname(dirname(dirname(realpath(__file__))))
-        model_dir = join(base_dir, 'models', cfg.model.name + '.pt')
+        model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')
         return model, bertconfig 
 
 def get_model(cfg):
@@ -174,6 +174,6 @@ def get_model(cfg):
     if cfg.model.name == 'bert':
         return get_bert_for_pretraining(cfg)
     else:
-        raise ValueError(f"Model {cfg.model.name} not supported")
+        raise ValueError(f"Model {cfg.model.save_name} not supported")
 
 

@@ -51,13 +51,10 @@ class Data:
         self.cfg = cfg
         self.data_name = cfg.data.name
         self.data_dir = self.get_data_dir()   
-
+            
     def get_tokenized_data(self, vocab_only=False):
         """Loads or creates tokenized data"""
-        tok_dir = join(self.data_dir, 'tokenized')
-        tok_files = os.listdir(tok_dir)
-        if self.data_name +  '_vocab.pt' in tok_files \
-            and self.data_name + '.pt' in tok_files:
+        if self.check_tokenized_data_exists():
             return self.load_tokenized_data(vocab_only)
         else:
             return utils.create_tokenized_data(self.cfg)
@@ -93,3 +90,21 @@ class Data:
         else:
             data_dir = self.cfg.data.dir
         return data_dir
+
+    def check_tokenized_data_exists(self):
+        """Checks if tokenized data exists, for hierarchical _hierarchy_mapping needed"""
+        tok_dir = join(self.data_dir, 'tokenized')
+        tok_files = os.listdir(tok_dir)
+        if self.cfg.model.embedding.hierarchical:
+            if self.data_name +  '_vocab.pt' in tok_files \
+                and self.data_name + '.pt' in tok_files\
+                    and self.data_name +'_hierarchy_mapping.pt' in tok_files:
+                return True
+            else:
+                return False
+        else:
+            if self.data_name +  '_vocab.pt' in tok_files \
+                and self.data_name + '.pt' in tok_files:
+                return True
+            else:
+                return False

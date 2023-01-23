@@ -3,8 +3,10 @@ import os
 from os.path import dirname, join, realpath
 
 import torch
+import hydra
 from omegaconf import open_dict, OmegaConf
 from torch.utils.data import random_split
+from torch.optim import Adam, AdamW
 from tqdm import tqdm
 from transformers import Trainer
 
@@ -25,11 +27,9 @@ class CustomPreTrainer(Trainer):
         self.model_dir = self.get_model_dir()
         
         # training 
-        self.optim  = torch.optim.AdamW(
-            model.parameters(), lr=cfg.training.optimizer.lr)
+        self.optim = hydra.utils.instantiate(cfg.training.optimizer, model.parameters())
         self.epochs = self.cfg.training.epochs
         self.batch_size = self.cfg.training.batch_size
-        
         # data
         if len(data)==3:
             self.data, self.vocab, self.int2int = data
@@ -125,7 +125,7 @@ class CustomPreTrainer(Trainer):
 
     def get_model_dir(self):
         base_dir = dirname(dirname(dirname(realpath(__file__))))
-        model_dir = join(base_dir, 'models', self.cfg.model.name)
+        model_dir = join(base_dir, 'models', self.cfg.model.save_name)
         common.create_directory(model_dir)
         return model_dir
 

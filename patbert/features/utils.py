@@ -37,9 +37,8 @@ def seq_padding(seq, max_len, vocab):
     return seq + (max_len-len(seq)) * [vocab['<PAD>']]
 
 def get_int2int_dic_for_hembedings(vocab, num_levels=6):
-    """Construct an ontology mapping from the vocab.
-        where each integer in the vocab is mapped to a list of integers
-        in the hierarchical tokenization of the vocab."""
+    """Construct an integer to integer mapping from the vocab for Hierarchical Embeddings.
+    """
     sks = medical.SKSVocabConstructor(vocab, num_levels=num_levels)
     vocabs = sks()
     list_of_dicts = [{} for _ in range(len(vocabs))]
@@ -50,12 +49,40 @@ def get_int2int_dic_for_hembedings(vocab, num_levels=6):
 
 
 def remap_values(dic:dict, x:torch.Tensor)->torch.Tensor:
+    """Helper function to remap values in a tensor using a dictionary."""
     remapping = torch.LongTensor(list(dic.keys())), torch.LongTensor(list(dic.values()))
     index = torch.bucketize(x.ravel(), remapping[0])
     return remapping[1][index].reshape(x.shape)
 
+def get_data(cfg):
+    """Loads processed data, performs tokenization and loads the tokenized data"""
+    try:
+        data = common.load_tokenized_data(cfg)
+    except:
+        # TODO we need to improve this by using hydra API
+        data = create_tokenized_data(cfg)
+    return data
+    
+def create_tokenized_data(cfg):
+    """Creates tokenized data from processed data and saves it"""
+    base_dir = dirname(dirname(dirname(realpath(__file__))))
+    tokenized_dir = join(base_dir, 'data', 'tokenized')
+    data_name = cfg.data.name
+    proc_data = common.Data(cfg).load_processed_data()
+    Tokenizer = tokenizer.EHRTokenizer(max_len=cfg.data.pad_len,)
+    tokenized_seq = Tokenizer.batch_encode(proc_data)
+    torch.save(tokenized_seq, join(tokenized_dir, data_name + '.pt'))
+    Tokenizer.save_vocab(join(tokenized_dir, data_name + '_vocab.pt'))
+    if cfg.model.embedding.hierarchical:
+        int2int  = get_int2int_dic_for_hembedings(
+            Tokenizer.vocabulary, num_levels=cfg.model.embedding.num_levels)
+        torch.save(int2int, join(tokenized_dir, data_name + '_hierarchy_mapping.pt'))
+        return tokenized_seq, Tokenizer.vocabulary, int2int
+    else:
+        return tokenized_seq, Tokenizer.vocabulary
 
 
+# Obsolete Functions
 def combine_masks(mask1, mask2):
     """Combine two masks into one mask. 1 where either mask is 1, 0 otherwise"""
     # Initialize the output mask to all zeros
@@ -94,30 +121,3 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
     masked_idxs[replace_mask] = rng.choice(list(vocab.values()), 
         size=replace_mask.sum())
     return masked_idxs, labels
-    
-
-def get_data(cfg):
-    """Loads processed data, performs tokenization and loads the tokenized data"""
-    try:
-        data = common.load_tokenized_data(cfg)
-    except:
-        # TODO we need to improve this by using hydra API
-        data = create_tokenized_data(cfg)
-    return data
-    
-def create_tokenized_data(cfg):
-    """Creates tokenized data from processed data and saves it"""
-    base_dir = dirname(dirname(dirname(realpath(__file__))))
-    tokenized_dir = join(base_dir, 'data', 'tokenized')
-    data_name = cfg.data.name
-    proc_data = common.Data(cfg).load_processed_data()
-    Tokenizer = tokenizer.EHRTokenizer(max_len=cfg.data.max_len,)
-    tokenized_seq = Tokenizer.batch_encode(proc_data)
-    torch.save(tokenized_seq, join(tokenized_dir, data_name + '.pt'))
-    Tokenizer.save_vocab(join(tokenized_dir, data_name + '_vocab.pt'))
-    if cfg.embeddings.hierarchical:
-        int2int  = get_int2int_dic_for_hembedings(
-            Tokenizer.vocabulary, num_levels=cfg.embeddings.num_levels)
-        torch.save(int2int, join(tokenized_dir, data_name + '_hierarchy_mapping.pt'))
-    data = tokenized_seq, Tokenizer.vocabulary, int2int
-    return data
