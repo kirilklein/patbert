@@ -1,11 +1,14 @@
-import numpy as np
 import pickle as pkl
-import string 
-import typer
 from datetime import datetime
+from os.path import dirname, join, realpath
 from random import sample
-from os.path import dirname, realpath, join
+
+import numpy as np
+import torch
+import typer
+
 from patbert.common import medical
+
 # get path of script
 
 
@@ -142,10 +145,8 @@ def main(save_name: str = typer.Option('synthetic',
         min_los, max_los, num_atc_codes, num_icd_codes, num_lab_tests, seed=seed)
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
-    save_path = join(base_dir, 'data', 'raw' ,save_name + '.pkl')
-
-    with open(save_path, 'wb') as f:
-        pkl.dump([hist for hist in generator.simulate_data()], f)
+    save_path = join(base_dir, 'data', 'processed' ,save_name + '.pt')
+    torch.save([hist for hist in generator.simulate_data()], save_path)
     #print([hist for hist in generator.simulate_data()])
 if __name__ == '__main__':
     typer.run(main)
