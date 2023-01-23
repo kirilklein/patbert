@@ -128,6 +128,7 @@ class VisitEmbedding(Embedding):
         return self.embedding(visits)
 
 class Time2Vec(nn.Module):
+    """Time2Vec embedding, check code, use now alternative instead"""
     def __init__(self,  out_features, in_features=1, activation='sin'):
         super(Time2Vec, self).__init__()
         self.out_features = out_features
@@ -147,6 +148,11 @@ class Time2Vec(nn.Module):
         return self.t2v(tau)
     
     def t2v(self, tau, arg=None):
+        print(tau)
+        print(torch.sum(tau))
+        print("tau dtype", tau.dtype)
+        print("w dtype", self.w.dtype)
+        print("b dtype", self.b.dtype)
         if arg:
             v1 = self.f(torch.matmul(tau, self.w) + self.b, arg)
         else:
@@ -154,17 +160,20 @@ class Time2Vec(nn.Module):
         v2 = torch.matmul(tau, self.w0) + self.b0
         return torch.cat([v1, v2], 1)
 
-def get_positional_embeddings(channels, embedding_dim):
+def get_positional_embeddings(cfg):
+    """Returns a dictionary of positional embeddings for each channel
+    Use time2vec for absolute position and age and VisitEmbedding for visits"""
     pos_embeddings = {}
-    for c in channels:
+    for c in cfg.data.channels:
         if c in ['abs_pos', 'ages']:
-            pos_embeddings[c] = Time2Vec(embedding_dim)
+            pos_embeddings[c] = Time2Vec(cfg.model.hidden_size, in_features=cfg.data.pad_len) #check this
         elif c=='visits':
-            pos_embeddings[c] = VisitEmbedding(embedding_dim)
+            pos_embeddings[c] = VisitEmbedding(cfg.model.hidden_size)
         elif c == 'values':
             pass
         else:
             raise ValueError(f"Channel {c} not supported")
+
     return pos_embeddings
 
 def get_add_params(channels, epsilon=1e-5):

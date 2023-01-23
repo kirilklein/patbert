@@ -10,7 +10,7 @@ from transformers import BertConfig, BertForPreTraining
 
 from patbert.common import pytorch, common
 from patbert.models.trainers import CustomPreTrainer
-
+from patbert.models import models
 
 
 class Encoder(CustomPreTrainer):
