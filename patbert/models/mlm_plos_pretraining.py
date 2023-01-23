@@ -2,7 +2,7 @@ from os.path import dirname, join, realpath
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
-
+from torch.optim import Adam
 from patbert.models import utils
 
 config_name = "test"
@@ -15,6 +15,7 @@ def my_app(cfg: DictConfig) -> None:
     model, bertconfig = utils.get_bert_for_pretraining(cfg)
     cfg = OmegaConf.create(cfg)
     OmegaConf.set_struct(cfg, False)
+    # opt = hydra.utils.instantiate(cfg.training.optimizer)
     trainer = utils.CustomPreTrainer(model, cfg, bertconfig)
     trainer()
     # trainer.save_model()
