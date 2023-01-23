@@ -3,7 +3,7 @@ import os
 from os.path import dirname, join, realpath
 
 import torch
-from omegaconf import open_dict
+from omegaconf import open_dict, OmegaConf
 from torch.utils.data import random_split
 from tqdm import tqdm
 from transformers import Trainer
@@ -15,31 +15,34 @@ from patbert.features.embeddings import StaticHierarchicalEmbedding
 
 
 class CustomPreTrainer(Trainer):
-    def __init__(self, model, cfg, bertconfig):
+    def __init__(self, data, model, cfg, model_cfg):
+        
         self.cfg = cfg        
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        # model 
         self.model = model
-        self.bertconfig = bertconfig
+        self.model_cfg = model_cfg
         self.model_dir = self.get_model_dir()
+        
+        # training 
         self.optim  = torch.optim.AdamW(
             model.parameters(), lr=cfg.training.optimizer.lr)
+        self.epochs = self.cfg.training.epochs
+        self.batch_size = self.cfg.training.batch_size
+        
         # data
-        self.data, self.vocab, self.int2int = common.load_data(cfg.data.name)
+        if len(data)==3:
+            self.data, self.vocab, self.int2int = data
+        else:
+            self.data, self.vocab = data
         with open_dict(cfg):
             self.cfg.data.vocab_size = len(self.vocab)
         dataset = MLM_PLOS_Dataset(self.data, self.vocab, self.cfg)
         self.train_dataset, self.val_dataset = self.split_train_val(dataset)
-        # training 
-        self.epochs = self.cfg.training.epochs
-        self.batch_size = self.cfg.training.batch_size
         self.trainloader, self.valloader = self.get_dataloaders()
+        
         if self.cfg.data.embedding_type=='static':
-            self.main_embedding = StaticHierarchicalEmbedding(
-                    self.vocab, self.int2int, 
-                    embedding_dim=self.cfg.model.hidden_size,
-                    kappa = self.cfg.model.embedding.kappa,
-                    alpha = self.cfg.model.embedding.alpha,
-                    )
+            self.main_embedding = StaticHierarchicalEmbedding(data, cfg)
         else:
             raise NotImplementedError
         self.pos_embeddings = embeddings.get_positional_embeddings(
@@ -159,5 +162,7 @@ class CustomPreTrainer(Trainer):
         common.create_directory(self.model_dir)
         torch.save(self.model, join(self.model_dir, "model.pt"))
         print(f"Trained model saved to {self.model_dir}")
-        with open(join(self.model_dir, 'config.json'), 'w') as f:
+        with open(join(self.model_dir, 'model_config.json'), 'w') as f:
             json.dump(vars(self.bertconfig), f)
+        with open(join(self.model_dir, 'config.yaml'), "w") as f:
+            OmegaConf.save(self.cfg, f)
