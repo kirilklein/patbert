@@ -168,3 +168,10 @@ def get_bert_for_pretraining(cfg):
         base_dir = dirname(dirname(dirname(realpath(__file__))))
         model_dir = join(base_dir, 'models', cfg.model.name + '.pt')
         return model, bertconfig 
+
+def get_model(cfg):
+    # TODO we need to improve this by using hydra API
+    if cfg.model.name == 'bert':
+        model, bertconfig = get_bert_for_pretraining(cfg)
+    else:
+        raise ValueError(f"Model {cfg.model.name} not supported")
