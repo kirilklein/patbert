@@ -58,9 +58,7 @@ class StaticHierarchicalEmbedding(nn.Module):
         # works until here
         self.scale_embedding_tsr()
         self.multiply_embedding_tsr_by_values(values)
-        print(self.embedding_tsr.isnan().sum())
         self.embedding_tsr = torch.sum(self.embedding_tsr, dim=0) # sum over levels dim
-        print(self.embedding_tsr.isnan().sum())
         return self.embedding_tsr
 
     def initialize_static_embeddings(self):

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from transformers import BertConfig, BertForPreTraining
+from transformers import BertConfig, BertForMaskedLM
 
 from patbert.features import embeddings
 from patbert.features.embeddings import StaticHierarchicalEmbedding
@@ -18,7 +18,7 @@ class StaticHierarchicalBERT(torch.nn.Module):
         self.add_params = embeddings.get_add_params(cfg.data.channels)
         self.fc0 = nn.Linear(cfg.model.hidden_size, cfg.model.hidden_size)
         self.gelu = nn.GELU()
-        self.bert = BertForPreTraining(self.model_config)
+        self.bert = BertForMaskedLM(self.model_config)
 
     def forward(self, batch):
         X = self.main_embedding(batch['idx'], batch['values']) 

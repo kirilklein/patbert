@@ -45,8 +45,8 @@ class CustomPreTrainer(Trainer):
         for epoch in range(self.epochs):
             train_loss = self.train(epoch)
             # validation    
-            val_loss = self.validate(epoch)
-            self.save_history(epoch, i, train_loss.item(), val_loss_avg) # type: ignore
+            val_loss, val_loss_avg = self.validate(epoch)
+            self.save_history(epoch, self.cfg.training.batch_size-1, train_loss.item(), val_loss_avg) # type: ignore
             if epoch%self.checkpoint_freq==0:
                 print("Checkpoint")
                 self.save_checkpoint(epoch, self.model, train_loss.item(), val_loss.item()) # type: ignore
@@ -67,7 +67,7 @@ class CustomPreTrainer(Trainer):
             for j, val_batch in enumerate(val_loop):
                 val_loss, val_loss_avg = self.optimizer_step(val_batch, val_loop, 
                      epoch, j, validation=True, loss_avg=val_loss_avg)
-        return val_loss
+        return val_loss, val_loss_avg
 
     def optimizer_step(self, batch, loop, epoch, batch_num,  
         validation=False, loss_avg=0):
@@ -86,9 +86,10 @@ class CustomPreTrainer(Trainer):
             loss_avg += loss.item()/len(loader)
             loop.set_description(f"Validation")
             loop.set_postfix({"val_loss":loss.item()}) 
-            return loss_avg  
+            return loss, loss_avg
         else:
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
             self.optim.step()
             loop.set_description(f"epoch {epoch}/{self.epochs} Training")
             loop.set_postfix(loss=loss.item())
