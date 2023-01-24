@@ -2,28 +2,25 @@ import json
 import os
 from os.path import dirname, join, realpath
 
-import torch
 import hydra
-from omegaconf import open_dict, OmegaConf
+import torch
+from omegaconf import OmegaConf, open_dict
+from torch import optim
 from torch.utils.data import random_split
-from torch.optim import Adam, AdamW
 from tqdm import tqdm
 from transformers import Trainer
 
 from patbert.common import common, pytorch
-
 from patbert.features.dataset import MLM_PLOS_Dataset
 
 
-
 class CustomPreTrainer(Trainer):
-    def __init__(self, data, model, cfg, model_cfg):
+    def __init__(self, data, model, cfg):
         
         self.cfg = cfg        
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         # model 
         self.model = model
-        self.model_cfg = model_cfg
         self.model_dir = self.get_model_dir()
         # training 
         self.optim = hydra.utils.instantiate(cfg.training.optimizer, model.parameters())
@@ -146,7 +143,11 @@ class CustomPreTrainer(Trainer):
         common.create_directory(self.model_dir)
         torch.save(self.model, join(self.model_dir, "model.pt"))
         print(f"Trained model saved to {self.model_dir}")
-        with open(join(self.model_dir, 'model_config.json'), 'w') as f:
-            json.dump(vars(self.bertconfig), f)
+        try:
+            with open(join(self.model_dir, 'model_config.json'), 'w') as f:
+                json.dump(vars(self.model.model_config), f)
+        except:
+            print("No model_config found in model")
+            pass
         with open(join(self.model_dir, 'config.yaml'), "w") as f:
             OmegaConf.save(self.cfg, f)

@@ -3,14 +3,16 @@ training:
     epochs: 1
     checkpoint_frequency: 1
     optimizer:
-        _target_: __main__.Adam
+        _target_: __main__.optim.Adam
+        _recursive_: false
         lr: 1.e-5
     from_checkpoint: false        
     validation_size: 0.1
-call_model:
-    _target_: utils.get_bert_for_pretraining
+
 model:
-    _target_: models.StaticHierarchicalEmbedding
+    init:
+        _target_: models.StaticHierarchicalBERT
+        _recursive_: false
     name: bert
     save_name: test_model
     load_model: false

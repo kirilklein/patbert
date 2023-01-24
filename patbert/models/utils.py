@@ -71,38 +71,6 @@ class Encoder(CustomPreTrainer):
                 **{'pat_ids':self.pat_ids, 'pat_vecs':pat_vecs})
         return self.pat_ids, pat_vecs
 
-class FCLayer(nn.Module):
-    """A fully connected layer with GELU activation to train on top of static embeddings"""
-    def __init__(self, input_size, output_size, weight=None, bias=None):
-        super(FCLayer, self).__init__()
-        self.fc = nn.Linear(input_size, output_size)
-        if not(isinstance(weight, type(None))):
-            self.fc.weight = torch.nn.Parameter(weight)
-        if not(isinstance(bias, type(None))):
-            self.fc.bias = torch.nn.Parameter(bias)
-        self.act = nn.GELU()
-
-    def forward(self, x):
-        # Add the GELU nonlinearity after the linear layer
-        x = self.fc(x)
-        x = self.act(x)
-        return x
-
-class ModelFC(nn.Module):
-    """A wrapper class for BERT model to add a fully connected layer on top of static embeddings"""
-    """Insert a fully connected layer with nonlinearity on top of static embeddings before feeding into model"""
-    def __init__(self, model, config):
-        super(ModelFC, self).__init__()
-        self.model = model
-        self.fc1 = FCLayer(config.hidden_size, config.hidden_size)
-
-    def forward(self, x):
-        # Pass the input tensor through the FC layer before passing it through the BERT model
-        x = self.fc1(x)
-        x = self.model(x)
-        return x
-
-
 class Attention(Encoder):
     """Used for visaulizing attention with bertviz"""
     def __init__(self, dataset, model_dir, pat_ids, 
@@ -149,11 +117,8 @@ class Attention(Encoder):
                 **{'pat_ids':self.pat_ids, 'pat_vecs':pat_vecs})
         return self.pat_ids, pat_vecs
 
+"""
 def get_bert_for_pretraining(cfg):
-        """Loads or initializes a BertForPreTraining model
-        with a fully connected layer on top of static embeddings
-        Returns:
-            model, BertConfig"""
         # configure model
         vocab = common.Data(cfg).load_tokenized_data(vocab_only=True) 
         bertconfig = BertConfig(vocab_size=len(vocab), **cfg.model)
@@ -168,19 +133,19 @@ def get_bert_for_pretraining(cfg):
         base_dir = dirname(dirname(dirname(realpath(__file__))))
         model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')
         return model, bertconfig 
-
+"""
 def get_model(data, cfg):
     # TODO we need to improve this by using hydra API    
     if not cfg.model.load_model:
         print("Initialize new model")
-        model, model_cfg = hydra.utils.instantiate(cfg.model, data, cfg) 
+        model = hydra.utils.instantiate(cfg.model.init, data=data, cfg=cfg,) 
+        print('worked')
     else:
         base_dir = dirname(dirname(dirname(realpath(__file__))))
         model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')
         print(f"Load saved model from {model_dir}")
         model = torch.load(join(model_dir, 'model.pt'))
-        model_cfg = {}
-    return model, model_cfg
+    return model
     
 
 
