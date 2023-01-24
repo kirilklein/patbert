@@ -47,9 +47,9 @@ class CustomPreTrainer(Trainer):
             # validation    
             val_loss, val_loss_avg = self.validate(epoch)
             self.save_history(epoch, self.cfg.training.batch_size-1, train_loss.item(), val_loss_avg) # type: ignore
-            if epoch%self.checkpoint_freq==0:
+            if epoch%self.cfg.training.checkpoint_frequency==0:
                 print("Checkpoint")
-                self.save_checkpoint(epoch, self.model, train_loss.item(), val_loss.item()) # type: ignore
+                self.save_checkpoint(epoch, train_loss.item(), val_loss.item()) # type: ignore
             # TODO: introduce training scheduler
 
     def train(self, epoch):
