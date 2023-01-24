@@ -1,7 +1,7 @@
 import json
 import os
 from os.path import join, dirname, realpath
-
+import hydra
 import numpy as np
 import torch
 import torch.nn as nn
@@ -169,11 +169,18 @@ def get_bert_for_pretraining(cfg):
         model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')
         return model, bertconfig 
 
-def get_model(cfg):
-    # TODO we need to improve this by using hydra API
-    if cfg.model.name == 'bert':
-        return get_bert_for_pretraining(cfg)
+def get_model(data, cfg):
+    # TODO we need to improve this by using hydra API    
+    if not cfg.model.load_model:
+        print("Initialize new model")
+        model, model_cfg = hydra.utils.instantiate(cfg.model, data, cfg) 
     else:
-        raise ValueError(f"Model {cfg.model.save_name} not supported")
+        base_dir = dirname(dirname(dirname(realpath(__file__))))
+        model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')
+        print(f"Load saved model from {model_dir}")
+        model = torch.load(join(model_dir, 'model.pt'))
+        model_cfg = {}
+    return model, model_cfg
+    
 
 

@@ -11,9 +11,9 @@ from tqdm import tqdm
 from transformers import Trainer
 
 from patbert.common import common, pytorch
-from patbert.features import embeddings
+
 from patbert.features.dataset import MLM_PLOS_Dataset
-from patbert.features.embeddings import StaticHierarchicalEmbedding
+
 
 
 class CustomPreTrainer(Trainer):
@@ -25,7 +25,6 @@ class CustomPreTrainer(Trainer):
         self.model = model
         self.model_cfg = model_cfg
         self.model_dir = self.get_model_dir()
-        
         # training 
         self.optim = hydra.utils.instantiate(cfg.training.optimizer, model.parameters())
         self.epochs = self.cfg.training.epochs
@@ -40,13 +39,6 @@ class CustomPreTrainer(Trainer):
         dataset = MLM_PLOS_Dataset(self.data, self.vocab, self.cfg)
         self.train_dataset, self.val_dataset = self.split_train_val(dataset)
         self.trainloader, self.valloader = self.get_dataloaders()
-        
-        if self.cfg.model.embedding.type=='static':
-            self.main_embedding = StaticHierarchicalEmbedding(data, cfg)
-        else:
-            raise NotImplementedError
-        self.pos_embeddings = embeddings.get_positional_embeddings(cfg)
-        self.add_params = embeddings.get_add_params(self.cfg.data.channels)
         
     def __call__(self):
         if self.cfg.training.from_checkpoint:
@@ -81,17 +73,11 @@ class CustomPreTrainer(Trainer):
             self.optim.zero_grad()
         batch = pytorch.batch_to_device(batch, self.device)
         #TODO: the dataloader has to produce static embeddings batchwise
-        input_tsr = self.main_embedding(batch['idx'], batch['values'])        
-        for c in self.cfg.data.channels:
-            input_tsr += self.add_params[c] * self.pos_embeddings[c](batch[c])
         # process
-        assert False
-        outputs = self.model(inputs_embeds=input_tsr, 
-                    attention_mask=batch['attention_mask'], 
-                    labels=batch['labels'],
-                    )
+        outputs = self.model(batch)
         # TODO: think about how to incorporate the prolonged length of stay prediciton task                
         # extract loss
+        assert False
         loss = outputs.loss
         if validation:
             loss_avg += loss.item()/len(loader)
