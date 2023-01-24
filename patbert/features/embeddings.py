@@ -45,6 +45,7 @@ class StaticHierarchicalEmbedding(nn.Module):
 
     def forward(self, ids, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
+        # TODO: write unit tests
         if values is None:
             values = torch.ones_like(ids)
         if ids.shape[1]!=values.shape[1]:
@@ -54,10 +55,12 @@ class StaticHierarchicalEmbedding(nn.Module):
         for dic in self.int2int: # we get one batch of ids for each level
             self.id_arr_ls.append(utils.remap_values(dic, ids))
         self.embedding_tsr = self.get_embedding_tsr() # levels x batch x len x emb_dim
-        assert False
+        # works until here
         self.scale_embedding_tsr()
         self.multiply_embedding_tsr_by_values(values)
+        print(self.embedding_tsr.isnan().sum())
         self.embedding_tsr = torch.sum(self.embedding_tsr, dim=0) # sum over levels dim
+        print(self.embedding_tsr.isnan().sum())
         return self.embedding_tsr
 
     def initialize_static_embeddings(self):
@@ -67,8 +70,10 @@ class StaticHierarchicalEmbedding(nn.Module):
         return embedding_ls
 
     def multiply_embedding_tsr_by_values(self, values):
-        """Multiply embedding tensor by value at the right hierarchy level"""
-        value_tsr = self.get_value_tsr(self.id_arr_ls, values)
+        """Multiply embedding tensor by value at the right hierarchy level
+        shape(value_tsr) = levels x batch x len
+        shape(embedding_tsr) = levels x batch x len x emb_dim"""
+        value_tsr = self.get_value_tsr(self.id_arr_ls, values) 
         self.embedding_tsr *= value_tsr.unsqueeze(-1)
 
     def scale_embedding_tsr(self):
