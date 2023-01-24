@@ -53,8 +53,8 @@ class StaticHierarchicalEmbedding(nn.Module):
         self.id_arr_ls = []
         for dic in self.int2int: # we get one batch of ids for each level
             self.id_arr_ls.append(utils.remap_values(dic, ids))
-        print(self.id_arr_ls)
         self.embedding_tsr = self.get_embedding_tsr() # levels x batch x len x emb_dim
+        assert False
         self.scale_embedding_tsr()
         self.multiply_embedding_tsr_by_values(values)
         self.embedding_tsr = torch.sum(self.embedding_tsr, dim=0) # sum over levels dim
@@ -63,7 +63,7 @@ class StaticHierarchicalEmbedding(nn.Module):
     def initialize_static_embeddings(self):
         embedding_ls = [] # TODO: think about vectorizing
         for vocab in self.vocabs:
-            embedding_ls.append(Embedding(len(vocab), self.embedding_dim))
+            embedding_ls.append(nn.Embedding(len(vocab), self.embedding_dim))
         return embedding_ls
 
     def multiply_embedding_tsr_by_values(self, values):
@@ -80,15 +80,18 @@ class StaticHierarchicalEmbedding(nn.Module):
         self.embedding_tsr = level_mult.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)*self.embedding_tsr
     
     def get_embedding_tsr(self):
-        """Returns a tensor of shape levels x len x emb_dim"""
+        """Returns a tensor of shape levels x batch x len x emb_dim"""
         arr_ls = []
         # TODO: we should get rid of this for loop
-        for id_arr, embedding in zip(self.id_arr_ls, self.embedding_ls):
+        for id_arr, embedding in zip(self.id_arr_ls, self.embedding_ls): # loop through levels
             arr = embedding(torch.LongTensor(id_arr))
-            lens = torch.norm(arr, dim=0)
-            arr  = (arr * self.alpha)/lens          
+            lens = torch.norm(arr, dim=-1).unsqueeze(-1).expand_as(arr) # last dimension is emb_dim
+            # new_arr = torch.copy(arr, fill_value=float('nan'))
+            mask = (lens != 0) # avoid division by zero
+            arr[mask] = arr[mask] / lens[mask]
+            arr = arr * self.alpha
             arr_ls.append(arr) 
-        # concatenate arr_ls to get 3d tensor
+        # concatenate arr_ls to get 4d tensor
         embedding_tsr = torch.stack(arr_ls) 
         return embedding_tsr
 

@@ -25,9 +25,9 @@ model:
     embedding: 
         hierarchical: true
         type: static
-        kappa: 3
+        kappa: 20
         kappa_trainable: true
-        alpha: 20
+        alpha: 3
         alpha_trainable: true
         num_levels: 6
         fully_trainable_scaling: false
