@@ -5,7 +5,7 @@ from os.path import dirname, join, realpath
 import hydra
 import torch
 from omegaconf import OmegaConf, open_dict
-from torch import optim
+from torch import optim # needed for instantiate
 from torch.utils.data import random_split
 from tqdm import tqdm
 from transformers import Trainer
@@ -43,38 +43,44 @@ class CustomPreTrainer(Trainer):
         self.model.to(self.device) # and move our model over to the selected device
         self.model.train() # activate training mode  
         for epoch in range(self.epochs):
-            train_loop = tqdm(self.trainloader, leave=True)
-            for i, train_batch in enumerate(train_loop):
-                train_loss = self.optimizer_step(train_batch, train_loop,
-                    self.trainloader,epoch, i,  validation=False)
+            train_loss = self.train(epoch)
             # validation    
-            val_loop = tqdm(self.valloader, leave=True)
-            self.model.eval()
-            val_loss_avg = 0
-            with torch.no_grad():
-                for j, val_batch in enumerate(val_loop):
-                    val_loss, val_loss_avg = self.optimizer_step(val_batch, val_loop, 
-                        self.valloader, epoch, j, validation=True, loss_avg=val_loss_avg)
+            val_loss = self.validate(epoch)
             self.save_history(epoch, i, train_loss.item(), val_loss_avg) # type: ignore
             if epoch%self.checkpoint_freq==0:
                 print("Checkpoint")
-                self.save_checkpoint(epoch, self.model, 
-                    train_loss.item(), val_loss.item()) # type: ignore
+                self.save_checkpoint(epoch, self.model, train_loss.item(), val_loss.item()) # type: ignore
             # TODO: introduce training scheduler
 
+    def train(self, epoch):
+        train_loop = tqdm(self.trainloader, leave=True)
+        for i, train_batch in enumerate(train_loop):
+            train_loss = self.optimizer_step(train_batch, train_loop,
+                epoch, i,  validation=False)
+        return train_loss
 
-    def optimizer_step(self, batch, loop, loader, epoch, batch_num,  
+    def validate(self, epoch):
+        val_loop = tqdm(self.valloader, leave=True)
+        self.model.eval()
+        val_loss_avg = 0
+        with torch.no_grad():
+            for j, val_batch in enumerate(val_loop):
+                val_loss, val_loss_avg = self.optimizer_step(val_batch, val_loop, 
+                     epoch, j, validation=True, loss_avg=val_loss_avg)
+        return val_loss
+
+    def optimizer_step(self, batch, loop, epoch, batch_num,  
         validation=False, loss_avg=0):
         # initialize calculated grads
         if not validation:
             self.optim.zero_grad()
+            loader = self.trainloader
+        else:
+            loader = self.valloader
         batch = pytorch.batch_to_device(batch, self.device)
-        #TODO: the dataloader has to produce static embeddings batchwise
-        # process
         outputs = self.model(batch)
         # TODO: think about how to incorporate the prolonged length of stay prediciton task                
         # extract loss
-        assert False
         loss = outputs.loss
         if validation:
             loss_avg += loss.item()/len(loader)
@@ -118,7 +124,7 @@ class CustomPreTrainer(Trainer):
             'optimizer_state_dict':self.optim.state_dict(),
             'train_loss':train_loss,
             'val_loss':val_loss,
-            'config':self.bertconfig,
+            'config':self.model.model_config,
         }, checkpoint_path)
     
     def save_history(self, epoch, batch, train_loss, val_loss=-100):

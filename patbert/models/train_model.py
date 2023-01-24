@@ -20,7 +20,7 @@ def my_app(cfg: DictConfig) -> None:
     #hydra.utils.instantiate(cfg.training.optimizer, model.parameters, _recursive_=False)
     #OmegaConf.set_struct(cfg, False)
     trainer = utils.CustomPreTrainer(data, model, cfg)
-    #trainer()
+    trainer()
     # trainer.save_model()
 
 if __name__=='__main__':

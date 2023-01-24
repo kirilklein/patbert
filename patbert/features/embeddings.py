@@ -15,9 +15,9 @@ class Embedding(nn.Embedding):
             # handle tensor input
             return super(Embedding, self).forward(input)
 
-
-class StaticHierarchicalEmbedding(Embedding):
+class StaticHierarchicalEmbedding(nn.Module):
     def __init__(self, data, cfg):
+        super(StaticHierarchicalEmbedding, self).__init__()
         """
         kappa: exponent to make vectors shorter with each hierarchy level
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
@@ -43,7 +43,7 @@ class StaticHierarchicalEmbedding(Embedding):
         self.set_zero_weight()
         self.set_to_static()
 
-    def __call__(self, ids, values=None):
+    def forward(self, ids, values=None):
         """Outputs a tensor of shape levels x len x emb_dim"""
         if values is None:
             values = torch.ones_like(ids)
@@ -53,9 +53,11 @@ class StaticHierarchicalEmbedding(Embedding):
         self.id_arr_ls = []
         for dic in self.int2int: # we get one batch of ids for each level
             self.id_arr_ls.append(utils.remap_values(dic, ids))
-        self.embedding_tsr = self.get_embedding_tsr()
+        print(self.id_arr_ls)
+        self.embedding_tsr = self.get_embedding_tsr() # levels x batch x len x emb_dim
         self.scale_embedding_tsr()
         self.multiply_embedding_tsr_by_values(values)
+        self.embedding_tsr = torch.sum(self.embedding_tsr, dim=0) # sum over levels dim
         return self.embedding_tsr
 
     def initialize_static_embeddings(self):
@@ -76,7 +78,6 @@ class StaticHierarchicalEmbedding(Embedding):
         if self.fully_trainable_scaling:
             level_mult.requires_grad = True
         self.embedding_tsr = level_mult.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)*self.embedding_tsr
-        
     
     def get_embedding_tsr(self):
         """Returns a tensor of shape levels x len x emb_dim"""
@@ -98,7 +99,7 @@ class StaticHierarchicalEmbedding(Embedding):
     @staticmethod
     def get_value_tsr(id_arr_ls, values):
         """Store values in a tensor of shape id_tsr"""
-        id_tsr = torch.from_numpy(np.stack(id_arr_ls))
+        id_tsr = torch.from_numpy(np.stack(id_arr_ls)) 
         value_tsr = torch.ones_like(id_tsr).to(torch.float64)
         values = values.to(value_tsr.dtype)
         last_non_zero = common.get_last_nonzero_idx(id_tsr,0)
