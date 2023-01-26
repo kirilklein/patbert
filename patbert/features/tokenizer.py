@@ -7,10 +7,43 @@ import typer
 
 from patbert.features import utils
 
+class BaseTokenizer():
+    def __init__(self, cfg, vocabulary=None):
+        """Add description"""
+        if isinstance(vocabulary, type(None)):
+            self.special_tokens = ['<ZERO>', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>',]
+            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
+        else:
+            self.vocabulary = vocabulary
+        self.max_len = cfg.data.pad_len
+    
+    def __call__(self, seqs):
+        return self.batch_encode(seqs)
+    
+    def batch_encode(self, seqs):
+        seqs_new = []
+        for seq in seqs:
+            seqs_new.append(self.encode_seq(seq))
+        return seqs_new
 
-class EHRTokenizer():
-    def __init__(self, vocabulary=None, max_len=None, len_background=5,
+    def encode_seq(self, seq):
+        self.enc_seq = defaultdict(list) # we need a dictionary of lists
+        for code in zip(seq['codes']):
+            self.enc_seq['idx'].append(self.encode(code))
+        self.enc_seq['visits'] = seq['visits']
+        return dict(self.enc_seq)
+
+    def encode(self, code):
+        """Encode a code, if it is not in the vocabulary, add it."""
+        if code not in self.vocabulary:
+            self.vocabulary[code] = len(self.vocabulary)
+        return self.vocabulary[code]
+
+class EHRTokenizer(BaseTokenizer):
+    """EHR tokenizer with background sentent and different channels"""
+    def __init__(self, cfg, vocabulary=None, len_background=5,
         channels=['visits', 'ages','abs_pos','los','values']):
+        super(self, EHRTokenizer).__init__(cfg)
         """Add description"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
@@ -22,17 +55,9 @@ class EHRTokenizer():
                 self.vocabulary[f'<BIRTHMONTH>{i}'] = len(self.vocabulary)
         else:
             self.vocabulary = vocabulary
-        self.max_len = max_len
+        self.max_len = cfg.data.pad_len
         self.len_background = len_background # usually cls, sex, birthyear, birthmonth
         self.channels = channels
-    def __call__(self, seqs):
-        return self.batch_encode(seqs)
-
-    def batch_encode(self, seqs):
-        seqs_new = []
-        for seq in seqs:
-            seqs_new.append(self.encode_seq(seq))
-        return seqs_new
     
     def encode_seq(self, seq):
         self.enc_seq = defaultdict(list) # we need a dictionary of lists
@@ -55,7 +80,7 @@ class EHRTokenizer():
                 if len(seq['abs_pos'])>(i+1):
                     abs_pos_0 = seq['abs_pos'][i+1] # abs pos of next visit
             for key in ['visits', 'codes', 'ages', 'abs_pos', 'values']:
-                self.append_token_from_original(key, i)
+                self.append_token_from_original(key, i) 
             self.enc_seq['los'].append(0)
             self.enc_seq['idx'].append(self.encode(seq['codes'][i]))
             if i==(len(seq['codes'])-1):
@@ -133,11 +158,6 @@ class EHRTokenizer():
         """Truncate one list inside seq"""
         self.enc_seq[key] = self.enc_seq[key][-max_len:]
         
-    def encode(self, code):
-        """Encode a code, if it is not in the vocabulary, add it."""
-        if code not in self.vocabulary:
-            self.vocabulary[code] = len(self.vocabulary)
-        return self.vocabulary[code]
     
     # add special tokens
     # check whether length is within limits

@@ -1,0 +1,6 @@
+init:
+  _target_: models.MedBERT 
+  _recursive_: false
+tokenization: basic
+embedding:
+  hierarchical: false
