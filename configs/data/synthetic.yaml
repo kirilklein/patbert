@@ -1,0 +1,8 @@
+name: synthetic
+channels: 
+  - visits 
+  - abs_pos
+  - ages
+  - values
+pad_len: 100
+plos: false
