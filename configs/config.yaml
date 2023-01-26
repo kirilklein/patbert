@@ -12,6 +12,10 @@ training:
         #lr: 1.e-5
     from_checkpoint: false        
     validation_size: 0.1
+    tasks:
+        plos_global: false #check whether patient has at least one plos longer than
+        plos_threshold: 7
+
 model:
     name: bert
     save_name: test_model

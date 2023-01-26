@@ -5,7 +5,7 @@ from transformers import BertConfig, BertForMaskedLM
 from patbert.features import embeddings
 from patbert.features.embeddings import StaticHierarchicalEmbedding
 
-
+# TODO: figure out how to add task specific losses to the output of the model
 class MedBERT(torch.nn.Module):
     def __init__(self, data=None, cfg=None) -> None:
         super(MedBERT, self).__init__()

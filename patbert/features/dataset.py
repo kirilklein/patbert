@@ -9,7 +9,8 @@ class MLM_PLOS_Dataset(Dataset):
         self.data = data
         self.vocab = vocab
         self.channels = cfg.data.channels
-        self.plos = cfg.data.plos
+        self.plos_global = cfg.training.tasks.plos_global
+        self.plos_threshold = cfg.training.tasks.plos_threshold
         self.init_pad_len(data, cfg.data.pad_len)
         self.mask_prob = cfg.data.mask_prob
         self.init_nonspecial_ids()
@@ -26,8 +27,8 @@ class MLM_PLOS_Dataset(Dataset):
         """ 
         pat_data = self.data[index]
         out_dic = {}
-        if self.plos:
-            out_dic['plos'] = int(any((np.array(pat_data['los'])>7)))
+        if self.plos_global:
+            out_dic['plos'] = int(any((np.array(pat_data['los'])>self.plos_threshold)))
         mask = self.get_mask(pat_data)
         out_dic['attention_mask'] = mask
         ids, labels = self.random_mask_ids(pat_data['idx']) 
