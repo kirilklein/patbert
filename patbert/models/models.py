@@ -5,6 +5,7 @@ from transformers import BertConfig, BertForMaskedLM
 from patbert.features import embeddings
 from patbert.features.embeddings import StaticHierarchicalEmbedding
 
+
 class MedBERT(torch.nn.Module):
     def __init__(self, data=None, cfg=None) -> None:
         super(MedBERT, self).__init__()
@@ -15,7 +16,10 @@ class MedBERT(torch.nn.Module):
         self.bert = BertForMaskedLM(self.model_config)
 
     def forward(self, batch):
-        return self.bert(inputs_embeds=batch['idx'], attention_mask=batch['attention_mask'], labels=batch['labels'])
+        return self.bert(
+            inputs_embeds=batch['idx'],
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'])
 
     def parameters(self):
         return self.bert.parameters()
@@ -36,13 +40,16 @@ class StaticHierarchicalBERT(torch.nn.Module):
         self.bert = BertForMaskedLM(self.model_config)
 
     def forward(self, batch):
-        X = self.main_embedding(batch['idx'], batch['values']) 
+        X = self.main_embedding(batch['idx'], batch['values'])
         # print(X)
         for c in self.cfg.data.channels:
-            if c!='values':
+            if c != 'values':
                 X += self.add_params[c] * self.pos_embeddings[c](batch[c])
         X = self.gelu(self.fc0(X))
-        outputs = self.bert(inputs_embeds=X, attention_mask=batch['attention_mask'], labels=batch['labels'])
+        outputs = self.bert(
+            inputs_embeds=X,
+            attention_mask=batch['attention_mask'],
+            labels=batch['labels'])
         return outputs
 
     def parameters(self):

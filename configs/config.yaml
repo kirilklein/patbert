@@ -1,4 +1,5 @@
 defaults:
+    - _self_ # important, otherwise keeps params from this config
     - data: synthetic
     - model: static_h_bert
 training:
@@ -21,11 +22,16 @@ model:
     intermediate_size: 200 # intermediate_size: 64 ?
     hidden_dropout_prob: 0
     validation_size: 0.1
-    
-
 data:
     dir: null # raw data directory, if null use data dir inside project
     mask_prob: 0.15
+    pad_len: 100
+    channels:
+        - visits 
+        - abs_pos
+        - ages
+        - values
     tokenizer:
-        _target_: tokenizer.EHRTokenizer
-        pad_len: 100
+        _target_: __main__.tokenizer.EHRTokenizer
+        _recursive_: false
+        

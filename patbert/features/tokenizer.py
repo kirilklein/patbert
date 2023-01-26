@@ -7,19 +7,23 @@ import typer
 
 from patbert.features import utils
 
+
 class BaseTokenizer():
     def __init__(self, cfg, vocabulary=None):
         """Add description"""
         if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<ZERO>', '<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>',]
-            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
+            self.special_tokens = ['<ZERO>', '<CLS>',
+                                   '<PAD>', '<SEP>', '<MASK>', '<UNK>',]
+            self.vocabulary = {token: idx for idx,
+                               token in enumerate(self.special_tokens)}
         else:
             self.vocabulary = vocabulary
+        self.channels = cfg.data.channels
         self.max_len = cfg.data.pad_len
-    
+
     def __call__(self, seqs):
         return self.batch_encode(seqs)
-    
+
     def batch_encode(self, seqs):
         seqs_new = []
         for seq in seqs:
@@ -27,10 +31,11 @@ class BaseTokenizer():
         return seqs_new
 
     def encode_seq(self, seq):
-        self.enc_seq = defaultdict(list) # we need a dictionary of lists
+        self.enc_seq = defaultdict(list)  # we need a dictionary of lists
         for code in zip(seq['codes']):
-            self.enc_seq['idx'].append(self.encode(code))
-        self.enc_seq['visits'] = seq['visits']
+            self.enc_seq['idx'].append(self.encode(code)) # no CLS or SEP tokens   
+        for c in self.channels:
+            self.enc_seq[c] = seq[c]
         return dict(self.enc_seq)
 
     def encode(self, code):
@@ -39,28 +44,36 @@ class BaseTokenizer():
             self.vocabulary[code] = len(self.vocabulary)
         return self.vocabulary[code]
 
+
 class EHRTokenizer(BaseTokenizer):
     """EHR tokenizer with background sentent and different channels"""
-    def __init__(self, cfg, vocabulary=None, len_background=5,
-        channels=['visits', 'ages','abs_pos','los','values']):
+
+    def __init__(self, cfg, vocabulary=None, len_background=5):
         super(self, EHRTokenizer).__init__(cfg)
         """Add description"""
         if isinstance(vocabulary, type(None)):
-            self.special_tokens = ['<ZERO>','<CLS>', '<PAD>', '<SEP>', '<MASK>', '<UNK>', 
-                '<SEX>0', '<SEX>1',]
-            self.vocabulary = {token:idx for idx, token in enumerate(self.special_tokens)}
+            self.special_tokens = [
+                '<ZERO>',
+                '<CLS>',
+                '<PAD>',
+                '<SEP>',
+                '<MASK>',
+                '<UNK>',
+                '<SEX>0',
+                '<SEX>1',
+            ]
+            self.vocabulary = {token: idx for idx,
+                               token in enumerate(self.special_tokens)}
             for i in range(1900, 2022):
                 self.vocabulary[f'<BIRTHYEAR>{i}'] = len(self.vocabulary)
             for i in range(1, 13):
                 self.vocabulary[f'<BIRTHMONTH>{i}'] = len(self.vocabulary)
         else:
             self.vocabulary = vocabulary
-        self.max_len = cfg.data.pad_len
-        self.len_background = len_background # usually cls, sex, birthyear, birthmonth
-        self.channels = channels
-    
+        self.len_background = len_background  # usually cls, sex, birthyear, birthmonth
+
     def encode_seq(self, seq):
-        self.enc_seq = defaultdict(list) # we need a dictionary of lists
+        self.enc_seq = defaultdict(list)  # we need a dictionary of lists
         self.seq = seq
         first_visit = 1
         abs_pos_0 = seq['abs_pos'][0]
@@ -68,23 +81,24 @@ class EHRTokenizer(BaseTokenizer):
 
         # skip pid, birthdate and sex
         for i in range(len(seq['codes'])):
-            if seq['visits'][i]>first_visit:
+            if seq['visits'][i] > first_visit:
                 self.append_code_idx('<SEP>')
                 self.enc_seq['visits'].append(first_visit)
                 self.append_previous_token('ages')
                 self.append_previous_token('abs_pos')
-                self.enc_seq['los'].append(seq['abs_pos'][i-1]-abs_pos_0) # visit length in days         
+                self.enc_seq['los'].append(
+                    seq['abs_pos'][i - 1] - abs_pos_0)  # visit length in days
                 last_abs_pos = seq['abs_pos'][i]
                 self.enc_seq['values'].append(1)
                 first_visit = seq['visits'][i]
-                if len(seq['abs_pos'])>(i+1):
-                    abs_pos_0 = seq['abs_pos'][i+1] # abs pos of next visit
+                if len(seq['abs_pos']) > (i + 1):
+                    abs_pos_0 = seq['abs_pos'][i + 1]  # abs pos of next visit
             for key in ['visits', 'codes', 'ages', 'abs_pos', 'values']:
-                self.append_token_from_original(key, i) 
+                self.append_token_from_original(key, i)
             self.enc_seq['los'].append(0)
             self.enc_seq['idx'].append(self.encode(seq['codes'][i]))
-            if i==(len(seq['codes'])-1):
-                self.enc_seq['los'].append(seq['abs_pos'][i]-last_abs_pos)
+            if i == (len(seq['codes']) - 1):
+                self.enc_seq['los'].append(seq['abs_pos'][i] - last_abs_pos)
         self.append_last_sep_token()
         self.truncate()
         self.insert_first_sep_token()
@@ -99,15 +113,17 @@ class EHRTokenizer(BaseTokenizer):
     def construct_background_sentence(self):
         birthdate = self.seq['birthdate']
         sex = self.seq['sex']
-        background_codes = [f'<BIRTHMONTH>{birthdate.month}', 
-            f'<BIRTHYEAR>{birthdate.year}', f'<SEX>{sex}', '<CLS>'] # order important
+        background_codes = [f'<BIRTHMONTH>{birthdate.month}',
+                            f'<BIRTHYEAR>{birthdate.year}', f'<SEX>{sex}', '<CLS>']  # order important
         for code in background_codes:
             self.insert_code_idx(code)
-        
-        for key in ['visits', 'ages', 'abs_pos', 'los']: # fill other lists with zeros
+
+        for key in ['visits', 'ages',
+                    'abs_pos', 'los']:  # fill other lists with zeros
             self.insert_values(len(background_codes), key, 0)
-        self.insert_values(len(background_codes), 'values', 1) # fill values with 1
-    
+        self.insert_values(len(background_codes), 'values',
+                           1)  # fill values with 1
+
     def insert_code_idx(self, code):
         """We insert code to codes and the corresponding index to idx."""
         self.enc_seq['codes'].insert(0, code)
@@ -115,15 +131,15 @@ class EHRTokenizer(BaseTokenizer):
 
     def insert_values(self, n, key, value=0):
         """n: Number of values at start of sequence to insert"""
-        ins_ls = [value]*n
+        ins_ls = [value] * n
         self.enc_seq[key] = ins_ls + self.enc_seq[key]
 
     def append_token_from_original(self, key, idx):
-        """Get the token at the given index from the original seq 
+        """Get the token at the given index from the original seq
             and append it to the enc_seq to the <key> list."""
         self.enc_seq[key].append(self.seq[key][idx])
 
-    def append_previous_token(self,key):
+    def append_previous_token(self, key):
         """Append the previous token to the enc_seq dictionary."""
         self.enc_seq[key].append(self.enc_seq[key][-1])
 
@@ -132,7 +148,7 @@ class EHRTokenizer(BaseTokenizer):
         self.insert_code_idx('<SEP>')
         self.enc_seq['values'].insert(0, 1)
         for key in ['visits', 'ages', 'abs_pos', 'los']:
-            self.enc_seq[key].insert(0, 0)        
+            self.enc_seq[key].insert(0, 0)
 
     def append_last_sep_token(self):
         """Append the last sep token to the enc_seq dictionary.
@@ -140,54 +156,56 @@ class EHRTokenizer(BaseTokenizer):
         self.append_code_idx('<SEP>')
         for key in ['visits', 'abs_pos', 'ages']:
             self.append_previous_token(key)
-        self.enc_seq['values'].append(1)        
+        self.enc_seq['values'].append(1)
 
     def truncate(self):
-        """Truncate the sequence to max_len-len_background, 
+        """Truncate the sequence to max_len-len_background,
             since we add a background sentence in the next step"""
         if not isinstance(self.max_len, type(None)):
-            max_len = self.max_len - self.len_background # background sentence + CLS token
-            if len(self.enc_seq['idx'])>max_len:
+            max_len = self.max_len - self.len_background  # background sentence + CLS token
+            if len(self.enc_seq['idx']) > max_len:
                 if self.enc_seq['codes'][-max_len] == '<SEP>':
                     # we don't want to start a sequence with SEP
                     max_len = max_len - 1
-                for key in ['codes', 'idx', 'values', 'visits', 'ages', 'abs_pos', 'los']:
+                for key in ['codes', 'idx', 'values',
+                            'visits', 'ages', 'abs_pos', 'los']:
                     self.truncate_ls(key, max_len)
-    
+
     def truncate_ls(self, key, max_len):
         """Truncate one list inside seq"""
         self.enc_seq[key] = self.enc_seq[key][-max_len:]
-        
-    
+
     # add special tokens
     # check whether length is within limits
     # add background sentence
+
     def save_vocab(self, dest):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
 
 
-
-
 def main(
-    input_data: str = typer.Argument(..., 
-        help="name of dataset"),
-    vocab_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
-    int2int_save_path: str = typer.Option(None, help="Path to save vocab, must end with .pt"),
-    out_data_path: str = typer.Option(None, help="Path to save tokenized data, must end with .pt"),
-    max_len: int = 
-        typer.Option(30, help="maximum number of tokens to keep for each visit"),
-    ):
+        input_data: str = typer.Argument(...,
+                                         help="name of dataset"),
+        vocab_save_path: str = typer.Option(
+            None, help="Path to save vocab, must end with .pt"),
+        int2int_save_path: str = typer.Option(
+            None, help="Path to save vocab, must end with .pt"),
+        out_data_path: str = typer.Option(
+            None, help="Path to save tokenized data, must end with .pt"),
+        max_len: int =
+    typer.Option(30, help="maximum number of tokens to keep for each visit"),
+):
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
     data_dir = join(base_dir, 'data')
     try:
-        with open(join(data_dir, 'processed' , input_data + '.pkl'), 'rb')as f:
+        with open(join(data_dir, 'processed', input_data + '.pkl'), 'rb')as f:
             data = pkl.load(f)
-    except:
+    except BaseException:
         try:
-            data = torch.load(join(data_dir, 'processed' , input_data + '.pt'))
-        except:
+            data = torch.load(join(data_dir, 'processed', input_data + '.pt'))
+        except BaseException:
             raise ValueError(f"Could not find {input_data} in {data_dir}")
 
     Tokenizer = EHRTokenizer(max_len=max_len)
@@ -197,12 +215,16 @@ def main(
     if isinstance(out_data_path, type(None)):
         out_data_path = join(data_dir, 'tokenized', input_data + '_vocab.pt')
     if isinstance(int2int_save_path, type(None)):
-        int2int_save_path = join(data_dir, 'tokenized', input_data + '_hierarchy_mapping.pt')
+        int2int_save_path = join(
+            data_dir, 'tokenized', input_data + '_hierarchy_mapping.pt')
     print(f"Save tokenized data to {out_data_path}")
     Tokenizer.save_vocab(vocab_save_path)
     torch.save(tokenized_data_dic, out_data_path)
     print(f"Create int2int dictionaries for hiearchical embeddings")
-    int2int  = utils.get_int2int_dic_for_hembedings(Tokenizer.vocabulary, num_levels=6)
+    int2int = utils.get_int2int_dic_for_hembedings(
+        Tokenizer.vocabulary, num_levels=6)
     torch.save(int2int, int2int_save_path)
+
+
 if __name__ == "__main__":
     typer.run(main)

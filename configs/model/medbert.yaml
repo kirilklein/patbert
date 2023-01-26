@@ -1,3 +1,4 @@
+name: medbert
 init:
   _target_: models.MedBERT 
   _recursive_: false

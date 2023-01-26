@@ -1,8 +1,8 @@
+name: static_h_bert
 init:
   _target_: models.StaticHierarchicalBERT
   _recursive_: false
 embedding: 
-  tokenizer: 
   hierarchical: true
   type: static
   kappa: 3

@@ -70,7 +70,7 @@ def create_tokenized_data(cfg):
     tokenized_dir = join(base_dir, 'data', 'tokenized')
     data_name = cfg.data.name
     proc_data = common.Data(cfg).load_processed_data()
-    Tokenizer = hydra.utils.instantiate(cfg.data.tokenizer)
+    Tokenizer = hydra.utils.instantiate(cfg.data.tokenizer, cfg=cfg)
     tokenized_seq = Tokenizer.batch_encode(proc_data)
     torch.save(tokenized_seq, join(tokenized_dir, data_name + '.pt'))
     Tokenizer.save_vocab(join(tokenized_dir, data_name + '_vocab.pt'))
