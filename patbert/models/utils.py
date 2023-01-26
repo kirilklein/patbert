@@ -138,8 +138,7 @@ def get_model(data, cfg):
     # TODO we need to improve this by using hydra API    
     if not cfg.model.load_model:
         print("Initialize new model")
-        model = hydra.utils.instantiate(cfg.model.init, data=data, cfg=cfg,) 
-        print('worked')
+        model = hydra.utils.instantiate(cfg.model.init, data=data, cfg=cfg) 
     else:
         base_dir = dirname(dirname(dirname(realpath(__file__))))
         model_dir = join(base_dir, 'models', cfg.model.save_name + '.pt')

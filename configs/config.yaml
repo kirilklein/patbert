@@ -9,7 +9,7 @@ training:
     optimizer:
         _target_: __main__.optim.Adam
         _recursive_: false
-        lr: 1.e-5
+        #lr: 1.e-5
     from_checkpoint: false        
     validation_size: 0.1
 model:
@@ -25,7 +25,6 @@ model:
 data:
     dir: null # raw data directory, if null use data dir inside project
     mask_prob: 0.15
-    pad_len: 100
     channels:
         - visits 
         - abs_pos
@@ -34,4 +33,5 @@ data:
     tokenizer:
         _target_: __main__.tokenizer.EHRTokenizer
         _recursive_: false
+        pad_len: 100
         

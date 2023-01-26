@@ -9,7 +9,7 @@ from patbert.features import utils
 
 
 class BaseTokenizer():
-    def __init__(self, cfg, vocabulary=None):
+    def __init__(self, pad_len, cfg, vocabulary=None):
         """Add description"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = ['<ZERO>', '<CLS>',
@@ -19,7 +19,7 @@ class BaseTokenizer():
         else:
             self.vocabulary = vocabulary
         self.channels = cfg.data.channels
-        self.max_len = cfg.data.pad_len
+        self.max_len = pad_len
 
     def __call__(self, seqs):
         return self.batch_encode(seqs)
@@ -48,8 +48,8 @@ class BaseTokenizer():
 class EHRTokenizer(BaseTokenizer):
     """EHR tokenizer with background sentent and different channels"""
 
-    def __init__(self, cfg, vocabulary=None, len_background=5):
-        super(self, EHRTokenizer).__init__(cfg)
+    def __init__(self, pad_len, cfg, vocabulary=None, len_background=5):
+        super(self, EHRTokenizer).__init__(pad_len, cfg)
         """Add description"""
         if isinstance(vocabulary, type(None)):
             self.special_tokens = [

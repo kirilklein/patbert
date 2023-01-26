@@ -5,7 +5,6 @@ from os.path import dirname, join, realpath
 import hydra
 import torch
 from omegaconf import OmegaConf, open_dict
-from torch import optim # needed for instantiate
 from torch.utils.data import random_split
 from tqdm import tqdm
 from transformers import Trainer
@@ -15,7 +14,7 @@ from patbert.features.dataset import MLM_PLOS_Dataset
 
 
 class CustomPreTrainer(Trainer):
-    def __init__(self, data, model, cfg):
+    def __init__(self, data, model, opt, cfg):
         
         self.cfg = cfg        
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -23,7 +22,7 @@ class CustomPreTrainer(Trainer):
         self.model = model
         self.model_dir = self.get_model_dir()
         # training 
-        self.optim = hydra.utils.instantiate(cfg.training.optimizer, model.parameters())
+        self.optim = opt
         self.epochs = self.cfg.training.epochs
         self.batch_size = self.cfg.training.batch_size
         # data
