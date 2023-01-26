@@ -11,8 +11,8 @@ class MedBERT(torch.nn.Module):
         super(MedBERT, self).__init__()
         self.cfg = cfg
         _, vocab, _ = data
-        self.model_config = BertConfig(vocab_size=len(vocab), **cfg.model)
-        self.main_embedding = nn.Embedding(len(vocab), cfg.model.hidden_size)
+        self.model_config = BertConfig(vocab_size=len(vocab), **cfg.model.architecture)
+        self.main_embedding = nn.Embedding(len(vocab), cfg.model.architecture.hidden_size)
         self.bert = BertForMaskedLM(self.model_config)
 
     def forward(self, batch):
@@ -30,12 +30,13 @@ class StaticHierarchicalBERT(torch.nn.Module):
         super(StaticHierarchicalBERT, self).__init__()
         self.cfg = cfg
         _, vocab, _ = data
-        self.model_config = BertConfig(vocab_size=len(vocab), **cfg.model)
+        self.model_config = BertConfig(vocab_size=len(vocab), **cfg.model.architecture)
         # embeddings
         self.main_embedding = StaticHierarchicalEmbedding(data, cfg)
         self.pos_embeddings = embeddings.get_positional_embeddings(cfg)
         self.add_params = embeddings.get_add_params(cfg.data.channels)
-        self.fc0 = nn.Linear(cfg.model.hidden_size, cfg.model.hidden_size)
+        hidden_size = cfg.model.architecture.hidden_size
+        self.fc0 = nn.Linear(hidden_size, hidden_size)
         self.gelu = nn.GELU()
         self.bert = BertForMaskedLM(self.model_config)
 

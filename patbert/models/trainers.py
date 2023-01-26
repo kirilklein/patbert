@@ -148,12 +148,14 @@ class CustomPreTrainer(Trainer):
     def save_model(self):
         common.create_directory(self.model_dir)
         torch.save(self.model, join(self.model_dir, "model.pt"))
+        with open(join(self.model_dir, 'config.yaml'), "w") as f:
+            OmegaConf.save(self.cfg, f)
         print(f"Trained model saved to {self.model_dir}")
+        print(type(vars(self.model.model_config)))
         try:
             with open(join(self.model_dir, 'model_config.json'), 'w') as f:
                 json.dump(vars(self.model.model_config), f)
         except:
             print("No model_config found in model")
-            pass
-        with open(join(self.model_dir, 'config.yaml'), "w") as f:
-            OmegaConf.save(self.cfg, f)
+            
+        

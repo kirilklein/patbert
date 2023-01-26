@@ -23,7 +23,7 @@ class StaticHierarchicalEmbedding(nn.Module):
         alpha: vectors at level 0 are scaled by alpha after being normalized"""
         # TODO: make fully trainable scaling
         _, vocab, self.int2int = data
-        self.embedding_dim = cfg.model.hidden_size
+        self.embedding_dim = cfg.model.architecture.hidden_size
         self.num_levels = cfg.model.embedding.num_levels
         self.sks = medical.SKSVocabConstructor(vocab, num_levels=self.num_levels)
         self.vocabs = self.sks()
@@ -171,11 +171,12 @@ def get_positional_embeddings(cfg):
     """Returns a dictionary of positional embeddings for each channel
     Use time2vec for absolute position and age and VisitEmbedding for visits"""
     pos_embeddings = {}
+    hidden_size = cfg.model.architecture.hidden_size
     for c in cfg.data.channels:
         if c in ['abs_pos', 'ages']:
-            pos_embeddings[c] = Time2Vec(cfg.model.hidden_size, in_features=cfg.data.pad_len) #check this
+            pos_embeddings[c] = Time2Vec(hidden_size, in_features=cfg.data.pad_len) #check this
         elif c=='visits':
-            pos_embeddings[c] = VisitEmbedding(cfg.model.hidden_size)
+            pos_embeddings[c] = VisitEmbedding(hidden_size)
         elif c == 'values':
             pass
         else:
