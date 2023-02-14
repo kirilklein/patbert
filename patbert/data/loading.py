@@ -1,11 +1,19 @@
-import hydra
 import glob
-import pandas as pd
-import numpy as np
 from datetime import datetime
+from os.path import dirname, join, realpath, split
+import logging
+
+import hydra
+import numpy as np
+import pandas as pd
 import torch
 
-@hydra.main(config_name='fake_config.yaml', config_path='.', version_base='1.3')
+config_name = "config"
+base_dir = dirname(dirname(dirname(realpath(__file__))))
+config_path = join(base_dir, 'configs', 'data')
+log = logging.getLogger(__name__)
+
+@hydra.main(config_name='loading.yaml', config_path=config_path, version_base='1.3')
 def process(cfg):
     features = {}
 
@@ -14,21 +22,25 @@ def process(cfg):
     
 
     if cfg.get('ages') is not None:
+        log.info('ages')
         ages = create_age_features(cfg, concepts)
         concepts['age'] = ages
         features['age'] = []
 
     if cfg.get('abspos') is not None:
+        log.info('abspos')
         abspos = create_abspos_features(cfg, concepts)
         concepts['abspos'] = abspos
         features['abspos'] = []
 
     if cfg.get('segments') is not None:
+        log.info('segments')
         segments = create_segment_features(cfg, concepts)
         concepts['segment'] = segments
         features['segment']  = []
 
     if cfg.get('demographics') is not None:
+        log.info('demographics')
         demographics = create_demographics(cfg)
         concepts = pd.concat((demographics, concepts))
 
@@ -117,7 +129,7 @@ def read_file(cfg, file_path):
     if file_type == 'csv':
         return pd.read_csv(file_path)
     elif file_type == 'parquet':
-        return pd.read_parquet(file_path)
+        return pd.read_parquet(file_path, parse_dates=['TIMESTAMP', 'TIMESTAMP_END'])
 
 if __name__ == '__main__':
     process()
