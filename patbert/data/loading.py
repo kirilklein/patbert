@@ -1,7 +1,9 @@
 import glob
+import logging
+import os
+from collections import defaultdict
 from datetime import datetime
 from os.path import dirname, join, realpath, split
-import logging
 
 import hydra
 import numpy as np
@@ -15,7 +17,7 @@ log = logging.getLogger(__name__)
 
 @hydra.main(config_name='loading.yaml', config_path=config_path, version_base='1.3')
 def process(cfg):
-    features = {}
+    features = defaultdict(list)
 
     concepts = load_concepts(cfg)
     features['concept'] = []
@@ -43,11 +45,11 @@ def process(cfg):
         log.info('demographics')
         demographics = create_demographics(cfg)
         concepts = pd.concat((demographics, concepts))
-
-    concepts[features.keys()]
     concepts.groupby('PID', sort=False).apply(lambda patient: add_to_features(features, patient))
-
-    with open(cfg.features_file, 'wb') as f:
+    sequence_dir = split(cfg.sequence_file)[0]
+    if not os.path.exists(sequence_dir):
+        os.makedirs(sequence_dir)
+    with open(cfg.sequence_dir, 'wb') as f:
         torch.save(features, f)
 
     return concepts
@@ -102,9 +104,6 @@ def create_demographics(cfg: dict, ages=False, abspos=False, segments=False):
     return demographics
 
 
-
-
-
 def calculate_age(patient, birthdates):
     if patient['PID'] in birthdates:
         return (patient['TIMESTAMP'] - birthdates[patient['PID']]['BIRTHDATE']).dt.days // 365.25
@@ -123,13 +122,12 @@ def add_to_features(features, patient):
 
 
 def read_file(cfg, file_path):
-    file_path = f'{cfg.data_dir}/{file_path}'
-
+    file_path = join(cfg.data_dir,file_path)
     file_type = file_path.split(".")[-1]
     if file_type == 'csv':
         return pd.read_csv(file_path)
     elif file_type == 'parquet':
-        return pd.read_parquet(file_path, parse_dates=['TIMESTAMP', 'TIMESTAMP_END'])
+        return pd.read_parquet(file_path)
 
 if __name__ == '__main__':
     process()
