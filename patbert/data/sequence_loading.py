@@ -17,11 +17,12 @@ log = logging.getLogger(__name__)
 
 @hydra.main(config_name='loading.yaml', config_path=config_path, version_base='1.3')
 def process(cfg):
+    test=True
     features = defaultdict(list)
 
     concepts = load_concepts(cfg)
-    features['concept'] = []
-    
+    if test:
+        concepts = concepts.sample(n=100000)
 
     if cfg.get('ages') is not None:
         log.info('ages')
@@ -49,7 +50,7 @@ def process(cfg):
     sequence_dir = split(cfg.sequence_file)[0]
     if not os.path.exists(sequence_dir):
         os.makedirs(sequence_dir)
-    with open(cfg.sequence_dir, 'wb') as f:
+    with open(cfg.sequence_file, 'wb') as f:
         torch.save(features, f)
 
     return concepts
@@ -121,11 +122,11 @@ def add_to_features(features, patient):
         features[column].append(patient[column].tolist())
 
 
-def read_file(cfg, file_path):
+def read_file(cfg, file_path, n_rows=None, test=False):
     file_path = join(cfg.data_dir,file_path)
     file_type = file_path.split(".")[-1]
     if file_type == 'csv':
-        return pd.read_csv(file_path)
+        return pd.read_csv(file_path, nrows=n_rows)
     elif file_type == 'parquet':
         return pd.read_parquet(file_path)
 
