@@ -5,14 +5,14 @@ from omegaconf import DictConfig
 
 from patbert.data import process_mimic # don't remove this line
 
-config_name = "mimic3"
-base_dir = dirname(dirname(realpath(__file__)))
-config_path = join(base_dir, 'configs')
+base_dir = dirname(dirname(dirname(realpath(__file__))))
+config_path = join(base_dir, 'configs', 'data')
+config_name = "processing"
 
 @hydra.main(version_base=None, config_path=config_path, config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
-    preprocessor = hydra.utils.instantiate(cfg.preprocessor, cfg=cfg, test=False)
-    preprocessor()
+    processor = hydra.utils.instantiate(cfg.processor, cfg=cfg, test=False)
+    processor()
     
     
 

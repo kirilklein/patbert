@@ -5,6 +5,7 @@ from transformers import BertConfig, BertForMaskedLM
 from patbert.features import embeddings
 from patbert.features.embeddings import StaticHierarchicalEmbedding
 
+
 class MetaClass(type):
     @staticmethod
     def wrap(forward):
@@ -16,7 +17,7 @@ class MetaClass(type):
             return outputs
         return new_forward
     def __new__(cls, name, bases, attrs):
-        """If the class has a 'run' method, wrap it"""
+        """If the class has a 'forward' method, wrap it"""
         if 'forward' in attrs:
             attrs['forward'] = cls.wrap(attrs['forward'])
         return super(MetaClass, cls).__new__(cls, name, bases, attrs)
