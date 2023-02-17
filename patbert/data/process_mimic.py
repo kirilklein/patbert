@@ -28,7 +28,6 @@ class PatientProcessor(MIMIC3Processor):
         if self.conf.group_rare_values:
             for col in self.conf.group_rare_values_cols:
                 patients = self.group_rare_values(patients, col)
-        print(patients.LANGUAGE.value_counts())
 
     def remove_birthdates(self, patients, threshold=110):
         """
