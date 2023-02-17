@@ -1,9 +1,9 @@
 import pandas as pd
 from os.path import join
-from patbert.data import process_utils
+from patbert.data import process_base
 
 
-class MIMIC3Processor(process_utils.BaseProcessor):
+class MIMIC3Processor(process_base.BaseProcessor):
     def __init__(self, cfg, test=False) -> None:
         super(MIMIC3Processor, self).__init__(cfg)
         self.cfg = cfg
@@ -20,11 +20,16 @@ class MIMIC3Processor(process_utils.BaseProcessor):
 class PatientProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(PatientProcessor, self).__init__(cfg, test)
+        self.conf = self.cfg.patients_info
 
     def __call__(self):
         patients = self.load_patients()
         patients = self.remove_birthdates(patients)
-        
+        if self.conf.group_rare_values:
+            for col in self.conf.group_rare_values_cols:
+                patients = self.group_rare_values(patients, col)
+        print(patients.LANGUAGE.value_counts())
+
     def remove_birthdates(self, patients, threshold=110):
         """
             For some patients, the time between birthdate and first admission 
