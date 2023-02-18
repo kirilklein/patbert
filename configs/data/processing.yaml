@@ -9,3 +9,5 @@ patients_info:
 diag:
   group_rare_values: true
   rare_threshold: 10
+weight:
+  drop_constant: true # drop unchanging measurements

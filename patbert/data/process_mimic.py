@@ -13,9 +13,14 @@ class MIMIC3Processor(process_base.BaseProcessor):
     def convert_to_date(self, df, col):
         df[col] = df[col].dt.date
         
-
     def __call__(self):
+        print("Processing MIMIC-III data")
+        print(":PatientInfo")
         PatientProcessor(self.cfg, self.test)()
+        print(":Weight")
+        WeightProcessor(self.cfg, self.test)()
+        print(":Diagnoses")
+        DiagnosesProcessor(self.cfg, self.test)()
 
 class PatientProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
@@ -57,7 +62,7 @@ class PatientProcessor(MIMIC3Processor):
 class DiagnosesProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(DiagnosesProcessor, self).__init__(cfg, test)
-        self.conf = self.cfg.diagnosis
+        self.conf = self.cfg.diag
 
     def __call__(self):
         diagnoses = self.load_diagnoses()
@@ -65,6 +70,27 @@ class DiagnosesProcessor(MIMIC3Processor):
             diagnoses = self.group_rare_values(diagnoses, 'CONCEPT')
 
     def load_diagnoses(self):
-        diagnoses = pd.read_parquet(join(self.data_path,"concept.diagnosis.parquet"))
-        self.convert_to_date(diagnoses, "TIMESTAMP")
+        diagnoses = pd.read_parquet(join(self.data_path,"concept.diag.parquet"))
         return diagnoses
+
+class WeightProcessor(MIMIC3Processor):
+    def __init__(self, cfg, test) -> None:
+        super(WeightProcessor, self).__init__(cfg, test)
+        self.conf = self.cfg.weight
+
+    def __call__(self):
+        weights = self.load_weights()
+        if self.conf.drop_constant:
+            weights = self.drop_constant_weight(weights)
+
+    def load_weights(self):
+        weights = pd.read_parquet(join(self.data_path,"concept.weight.parquet"))
+        return weights
+
+    def drop_constant_weight(self, weights):
+        """There are many repeating weight measurements with unchanged weight. 
+        Keep only the first one, or when weight changes"""
+        weights['weight_diff'] = weights.groupby('PID').VALUE.diff()
+        weights = weights[weights.weight_diff!=0]
+        weights = weights.drop(columns=['weight_diff'])
+        return weights
