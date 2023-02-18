@@ -5,4 +5,7 @@ processor:
 patients_info:
   group_rare_values: true
   group_rare_values_cols: ['INSURANCE', 'LANGUAGE', 'RELIGION', 'MARITAL_STATUS', 'ETHNICITY']
-  rare_threshold: 50 # as a count
+  rare_threshold: 10 # as a count
+diag:
+  group_rare_values: true
+  rare_threshold: 10

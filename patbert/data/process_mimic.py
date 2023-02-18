@@ -53,3 +53,18 @@ class PatientProcessor(MIMIC3Processor):
         self.convert_to_date(transfers, "TIMESTAMP")
         self.convert_to_date(transfers, "TIMESTAMP_END")
         return transfers
+
+class DiagnosesProcessor(MIMIC3Processor):
+    def __init__(self, cfg, test) -> None:
+        super(DiagnosesProcessor, self).__init__(cfg, test)
+        self.conf = self.cfg.diagnosis
+
+    def __call__(self):
+        diagnoses = self.load_diagnoses()
+        if self.conf.group_rare_values:
+            diagnoses = self.group_rare_values(diagnoses, 'CONCEPT')
+
+    def load_diagnoses(self):
+        diagnoses = pd.read_parquet(join(self.data_path,"concept.diagnosis.parquet"))
+        self.convert_to_date(diagnoses, "TIMESTAMP")
+        return diagnoses
