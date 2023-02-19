@@ -1,7 +1,11 @@
-import pandas as pd
 from os.path import join
-from patbert.data import process_base
+
+import pandas as pd
+import pyarrow as pa
 from hydra import utils as hydra_utils
+from pyarrow.parquet import ParquetFile
+
+from patbert.data import process_base
 
 
 class MIMIC3Processor(process_base.BaseProcessor):
@@ -10,22 +14,27 @@ class MIMIC3Processor(process_base.BaseProcessor):
         self.cfg = cfg
         self.test = test
         self.data_path = self.cfg.data_path
+        self.concept = None
 
-    def convert_to_date(self, df, col):
-        df[col] = df[col].dt.date
-        
     def __call__(self):
         print("Processing MIMIC-III data")
-        print(":PatientInfo")
-        PatientProcessor(self.cfg, self.test)()
-        print(":Weight")
-        WeightProcessor(self.cfg, self.test)()
-        print(":Diagnoses")
-        DiagnosesProcessor(self.cfg, self.test)()
+        for category in self.cfg.include:
+            print(f":{category}")
+            processor = globals()[f"{category}Processor"](self.cfg, self.test)
+            processor()
+    
+    def load(self):
+        if not self.test:
+            return pd.read_parquet(join(self.data_path,f"concept.{self.concept}.parquet"))
+        else:
+            pf = ParquetFile(join(self.data_path,f"concept.{self.concept}.parquet"))
+            batch = next(pf.iter_batches(batch_size = int(1e5))) 
+            return pa.Table.from_batches([batch]).to_pandas() 
 
-class PatientProcessor(MIMIC3Processor):
+
+class PatientInfoProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
-        super(PatientProcessor, self).__init__(cfg, test)
+        super(PatientInfoProcessor, self).__init__(cfg, test)
         self.conf = self.cfg.patients_info
 
     def __call__(self):
@@ -64,40 +73,24 @@ class TransfersProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(TransfersProcessor, self).__init__(cfg, test)
         self.conf = self.cfg.transfers
+        self.concept = "transfer"
 
     def __call__(self):
-        transfers = pd.read_parquet(join(self.data_path,"concept.transfer.parquet"))
+        transfers = self.load()
         # we will separate THOSPITAL in categores based on ADMIT_TYPE
         transfers.loc[transfers.CONCEPT=='THOSPITAL', 'CONCEPT'] = transfers.CONCEPT + '_' + transfers.ADMISSION_TYPE
 
 
-class DiagnosesProcessor(MIMIC3Processor):
+class WeightsProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
-        super(DiagnosesProcessor, self).__init__(cfg, test)
-        self.conf = self.cfg.diag
-
-    def __call__(self):
-        diagnoses = self.load_diagnoses()
-        if self.conf.group_rare_values:
-            diagnoses = self.group_rare_values(diagnoses, 'CONCEPT')
-
-    def load_diagnoses(self):
-        diagnoses = pd.read_parquet(join(self.data_path,"concept.diag.parquet"))
-        return diagnoses
-
-class WeightProcessor(MIMIC3Processor):
-    def __init__(self, cfg, test) -> None:
-        super(WeightProcessor, self).__init__(cfg, test)
+        super(WeightsProcessor, self).__init__(cfg, test)
         self.conf = self.cfg.weight
+        self.concept = "weight"
 
     def __call__(self):
-        weights = self.load_weights()
+        weights = self.load()
         if self.conf.drop_constant:
             weights = self.drop_constant_weight(weights)
-
-    def load_weights(self):
-        weights = pd.read_parquet(join(self.data_path,"concept.weight.parquet"))
-        return weights
 
     def drop_constant_weight(self, weights):
         """There are many repeating weight measurements with unchanged weight. 
@@ -106,5 +99,51 @@ class WeightProcessor(MIMIC3Processor):
         weights = weights[weights.weight_diff!=0]
         weights = weights.drop(columns=['weight_diff'])
         return weights
+
+class EventProcessor(MIMIC3Processor):
+    def __init__(self, cfg, test, concept) -> None:
+        super(EventProcessor, self).__init__(cfg, test)
+        self.concept = concept
+        self.conf = self.cfg[self.concept]
+
+    def __call__(self):
+        df = self.load()
+        if self.conf.group_rare_values:
+            df = self.group_rare_values(df, 'CONCEPT', rare_threshold=self.conf.rare_threshold)
+
+class DiagnosesProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(DiagnosesProcessor, self).__init__(cfg, test, "diag")
+    
+    def __call__(self):
+        diagnoses = super().__call__()
+
+class ProceduresProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(ProceduresProcessor, self).__init__(cfg, test, "pro")
+    
+    def __call__(self):
+        procedures = super().__call__()
+
+class MedicationsProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(MedicationsProcessor, self).__init__(cfg, test, "med")
+
+    def __call__(self):
+        medications = super().__call__()
+
+class LabEventsProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(LabEventsProcessor, self).__init__(cfg, test, "lab")
+
+    def __call__(self):
+        lab_events = super().__call__()
+
+class ChartEventsProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(ChartEventsProcessor, self).__init__(cfg, test, "chartvent")
+
+    def __call__(self):
+        chartevents = super().__call__()
 
 # patients = hydra_utils.call(self.cfg.values_processing, cfg=self.cfg, df=patients)

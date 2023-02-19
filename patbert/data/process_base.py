@@ -6,21 +6,26 @@ class BaseProcessor():
     def __init__(self, cfg) -> None:
         self.cfg = cfg
 
-    def group_rare_values(self, df, col, category='OTHER'):
+    def group_rare_values(self, df, col, category='OTHER', threshold=10):
         """Rare values, below the threshold, are grouped into a single category,"""
         counts = df[col].value_counts(normalize=False)
-        rare_values = counts[counts < self.cfg.patients_info.rare_threshold].index
+        rare_values = counts[counts < threshold].index
         df.loc[df[col].isin(rare_values), col] = category
         return df
 
-    
-def value_process_identity(cfg, df, *args, **kwargs): # for compatibility with other classes
+    def convert_to_date(self, df, col):
+        """Converts a column to datetime.date format"""
+        df[col] = df[col].dt.date
+
+# value processing
+def value_process_identity(cfg, df, *args, **kwargs): # for compatibility with other methods
     return df
 
 def value_process_binning(cfg, df):
     bins = hydra_utils.call(cfg.values_processing.binning_method, df=df)
     return bins
 
+# binning methods
 def fredman_diaconis_binning(values):
     max = values.max()
     min = values.min()
