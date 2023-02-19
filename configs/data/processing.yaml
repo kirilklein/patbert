@@ -1,4 +1,15 @@
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
+out_dir: mimic3\plain
+values_processing: 
+  _target_: __main__.process_base.value_process_identity
+  _recursive_: false
+  # _target_: __main__.process_mimic.value_process_binning
+  # _target_: __main__.process_mimic.value_process_keep_value
+  binning_method: 
+    _target_: __main__.process_base.square_root_binning
+    _recursive_: false
+  min_events: 0 
+  
 processor:
   _target_: __main__.process_mimic.MIMIC3Processor
   _recursive_: false
