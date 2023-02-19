@@ -1,6 +1,7 @@
 import pandas as pd
 from os.path import join
 from patbert.data import process_base
+from hydra import utils as hydra_utils
 
 
 class MIMIC3Processor(process_base.BaseProcessor):
@@ -59,6 +60,17 @@ class PatientProcessor(MIMIC3Processor):
         self.convert_to_date(transfers, "TIMESTAMP_END")
         return transfers
 
+class TransfersProcessor(MIMIC3Processor):
+    def __init__(self, cfg, test) -> None:
+        super(TransfersProcessor, self).__init__(cfg, test)
+        self.conf = self.cfg.transfers
+
+    def __call__(self):
+        transfers = pd.read_parquet(join(self.data_path,"concept.transfer.parquet"))
+        # we will separate THOSPITAL in categores based on ADMIT_TYPE
+        transfers.loc[transfers.CONCEPT=='THOSPITAL', 'CONCEPT'] = transfers.CONCEPT + '_' + transfers.ADMISSION_TYPE
+
+
 class DiagnosesProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(DiagnosesProcessor, self).__init__(cfg, test)
@@ -94,3 +106,5 @@ class WeightProcessor(MIMIC3Processor):
         weights = weights[weights.weight_diff!=0]
         weights = weights.drop(columns=['weight_diff'])
         return weights
+
+# patients = hydra_utils.call(self.cfg.values_processing, cfg=self.cfg, df=patients)
