@@ -1,8 +1,19 @@
-value_processing:
-  group_rare_values_id:
-    _target_: __main__.process_base.ValueProcessing.value_process_identity
-    _recursive_: false 
-  id: __main__.process_base.ValueProcessing.value_process_identity
+variables:
+  concept_processing:
+    grouping:
+      _target_: __main__.process_base.ValueProcessing.group_rare_values
+      _recursive_: false 
+    no_grouping:
+      _target_: __main__.process_base.ValueProcessing.value_process_identity
+      _recursive_: false 
+  value_processing:
+    identity: __main__.process_base.ValueProcessing.value_process_identity
+    binning: __main__.process_base.ValueProcessing.value_process_binning
+    binning_methods: 
+        sqr: __main__.process_base.BinningMethods.square_root_binning
+    no_binning:
+      _target_: __main__.process_base.ValueProcessing.value_process_identity
+      _recursive_: false 
 
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
 out_dir: mimic3\plain
@@ -20,7 +31,7 @@ processor:
   _recursive_: false
 
 
-# tables
+# table-specific
 patients_info:
   group_rare_values: 
     _target_: __main__.process_base.ValueProcessing.group_rare_values
@@ -30,40 +41,26 @@ patients_info:
 
 weight:
   drop_constant: true # drop unchanging measurements
-
 transfers:
-  group_rare_values: false
-
+  group_rare_values: ${variables.concept_processing.no_grouping}
 diag:
-  group_rare_values: ${value_processing.group_rare_values_id}
-
+  group_rare_values: ${variables.concept_processing.no_grouping}
 pro:
-  group_rare_values: 
-    
-
+  group_rare_values: ${variables.concept_processing.no_grouping}
 med:
-  group_rare_values: 
-    _target_: __main__.process_base.ValueProcessing.group_rare_values
-    _recursive_: false 
-
+  group_rare_values: ${variables.concept_processing.no_grouping}
 lab:
-  group_rare_values: 
-    _target_: __main__.process_base.ValueProcessing.group_rare_values
-    _recursive_: false 
-
+  group_rare_values: ${variables.concept_processing.no_grouping}
 chartevents:
-  group_rare_values: 
-    _target_: __main__.process_base.ValueProcessing.group_rare_values
-    _recursive_: false 
+  group_rare_values: ${variables.concept_processing.no_grouping}
 
 
-values_processing: 
-  _target_: __main__.process_base.ValueProcessing.value_process_identity
-  # _target_: __main__.process_mimic.value_process_binning
-  # _target_: __main__.process_mimic.value_process_keep_value
+# General
+value_processing: 
+  _target_: ${variables.value_processing.identity}
   _recursive_: false
   binning_method: 
-    _target_: __main__.process_base.BinningMethods.square_root_binning
+    _target_: ${variables.value_processing.binninb_methods.sqr}
     _recursive_: false
   min_events: 0 # minimum number of events in a bin, to get a token assigned
   
