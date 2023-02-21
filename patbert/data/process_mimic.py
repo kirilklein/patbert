@@ -74,19 +74,54 @@ class TransfersProcessor(MIMIC3Processor):
 
     def __call__(self):
         transfers = self.load()
-        # we will separate THOSPITAL in categores based on ADMIT_TYPE
-        transfers.loc[transfers.CONCEPT=='THOSPITAL', 'CONCEPT'] = transfers.CONCEPT + '_' + transfers.ADMISSION_TYPE
-        # transfers =
+        transfers = self.separate_start_end(transfers)
+        # transfers = self.append_hospital_admission_type(transfers)
+        # transfers = self.append_hospital_discharge(transfers)
+# to call multiple functions in a row, check out the following syntax:
+        """class Foo:
+    ...
+
+class Bar:
+    def __init__(self, foo):
+        self.foo = foo
+
+bar_conf = {
+    "_target_": "__main__.Bar",
+    "foo": {"_target_": "__main__.Foo"},
+}
+
+bar_factory = instantiate(bar_conf, _partial_=True)
+bar1 = bar_factory()
+bar2 = bar_factory()
+
+assert bar1 is not bar2
+assert bar1.foo is bar2.foo  # the `Foo` instance is re-used here
+"""
+        transfers = self.write_concept_to_parquet(transfers)
     
     @staticmethod
     def separate_start_end(transfers):
         """Separate transfers into start and end events"""
-        transfers_start = transfers.copy()
-        transfers_end = transfers.copy()
+        transfers_start = transfers.copy().drop(columns=['TIMESTAMP_END'])
+        transfers_end = transfers.copy().drop(columns=['TIMESTAMP'])
         transfers_start['CONCEPT'] = transfers_start['CONCEPT'] + '_START'
         transfers_end['CONCEPT'] = transfers_end['CONCEPT'] + '_END'
         transfers_end = transfers_end.rename(columns={'TIMESTAMP_END': 'TIMESTAMP'})
-        transfers = pd.concat([transfers_start, transfers_end])
+        transfers = pd.concat([transfers_start, transfers_end]).reset_index(drop=True)
+        return transfers
+    @staticmethod
+    def append_hospital_admission_type(transfers):
+        """Append admission type to THOSPITAL_START"""
+        start_mask = (transfers.CONCEPT=='THOSPITAL_START')
+        transfers.loc[start_mask, 'CONCEPT'] = transfers.loc[start_mask, 'CONCEPT'] \
+            + '_' + transfers.loc[start_mask, 'ADMISSION_TYPE']
+        return transfers
+    @staticmethod
+    def append_hospital_discharge_location(transfers):
+        """Append discharge location to THOSPITAL_END"""
+        end_mask = (transfers.CONCEPT=='THOSPITAL_END')
+        transfers.loc[end_mask, 'CONCEPT'] = transfers.loc[end_mask, 'CONCEPT'] \
+            + '_' + transfers.loc[end_mask, 'DISCHARGE_LOCATION']
         return transfers
 
 class WeightsProcessor(MIMIC3Processor):
