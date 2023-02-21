@@ -1,3 +1,9 @@
+value_processing:
+  group_rare_values_id:
+    _target_: __main__.process_base.ValueProcessing.value_process_identity
+    _recursive_: false 
+  id: __main__.process_base.ValueProcessing.value_process_identity
+
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
 out_dir: mimic3\plain
 include:
@@ -7,33 +13,48 @@ include:
   - Diagnoses
   # - Procedures
   # - Medications
-  - LabEvents
+  # - LabEvents
   # - ChartEvents
 processor:
   _target_: __main__.process_mimic.MIMIC3Processor
   _recursive_: false
 
+
 # tables
 patients_info:
-  group_rare_values: false
-  group_rare_values_cols: ['INSURANCE', 'LANGUAGE', 'RELIGION', 'MARITAL_STATUS', 'ETHNICITY']
-  rare_threshold: 10 # as a count
+  group_rare_values: 
+    _target_: __main__.process_base.ValueProcessing.group_rare_values
+    _recursive_: false
+    cols: ['INSURANCE', 'LANGUAGE', 'RELIGION', 'MARITAL_STATUS', 'ETHNICITY']
+    rare_threshold: 10 # 10 by default
+
 weight:
   drop_constant: true # drop unchanging measurements
+
 transfers:
   group_rare_values: false
-diag:
-  group_rare_values: false
-  rare_threshold: 10
-pro:
-  group_rare_values: false
-med:
-  group_rare_values: false
-lab:
-  group_rare_values: false
-chartevents:
-  group_rare_values: false
 
+diag:
+  group_rare_values: ${value_processing.group_rare_values_id}
+
+pro:
+  group_rare_values: 
+    
+
+med:
+  group_rare_values: 
+    _target_: __main__.process_base.ValueProcessing.group_rare_values
+    _recursive_: false 
+
+lab:
+  group_rare_values: 
+    _target_: __main__.process_base.ValueProcessing.group_rare_values
+    _recursive_: false 
+
+chartevents:
+  group_rare_values: 
+    _target_: __main__.process_base.ValueProcessing.group_rare_values
+    _recursive_: false 
 
 
 values_processing: 

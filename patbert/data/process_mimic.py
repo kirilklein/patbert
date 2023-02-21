@@ -40,9 +40,7 @@ class PatientInfoProcessor(MIMIC3Processor):
     def __call__(self):
         patients = self.load_patients()
         patients = self.remove_birthdates(patients)
-        if self.conf.group_rare_values:
-            for col in self.conf.group_rare_values_cols:
-                patients = self.group_rare_values(patients, col)
+        hydra_utils.call(self.conf.group_rare_values, df=patients)
 
     def remove_birthdates(self, patients, threshold=110):
         """
@@ -119,9 +117,8 @@ class EventProcessor(MIMIC3Processor):
         self.conf = self.cfg[self.concept]
 
     def __call__(self):
-        df = self.load()
-        if self.conf.group_rare_values:
-            df = self.group_rare_values(df, 'CONCEPT', rare_threshold=self.conf.rare_threshold)
+        events = self.load()
+        hydra_utils.call(self.conf.group_rare_values, df=events, cols=['CONCEPT'])
 
 class DiagnosesProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:

@@ -5,25 +5,29 @@ from hydra import utils as hydra_utils
 class BaseProcessor():
     def __init__(self, cfg) -> None:
         self.cfg = cfg
-
-    def group_rare_values(self, df, col, category='OTHER', threshold=10):
-        """Rare values, below the threshold, are grouped into a single category,"""
-        counts = df[col].value_counts(normalize=False)
-        rare_values = counts[counts < threshold].index
-        df.loc[df[col].isin(rare_values), col] = category
-        return df
-
-    def convert_to_date(self, df, col):
+        
+    
+    @staticmethod
+    def convert_to_date(df, col):
         """Converts a column to datetime.date format"""
         df[col] = df[col].dt.date
 
 class ValueProcessing:
     # value processing
     @staticmethod
-    def value_process_identity(cfg, df, *args, **kwargs): # for compatibility with other methods
+    def value_process_identity(df, *args, **kwargs): # for compatibility with other methods
         return df
     @staticmethod
-    def value_process_binning(cfg, df):
+    def group_rare_values(df, cols, category='OTHER', rare_threshold=10):
+        """Rare values, below the threshold, are grouped into a single category,"""
+        for col in cols:
+            counts = df[col].value_counts(normalize=False)
+            rare_values = counts[counts < rare_threshold].index
+            df.loc[df[col].isin(rare_values), col] = category
+        return df
+    @staticmethod
+    def value_process_binning(df, cfg):
+        """Continuous values of one concept are binned"""
         bins = hydra_utils.call(cfg.values_processing.binning_method, df=df)
         return bins
 
