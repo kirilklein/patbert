@@ -1,3 +1,7 @@
+hydra:
+  run:
+    dir: data/processed/mimic3/plain #output dir
+
 variables:
   concept_processing:
     grouping:
@@ -16,13 +20,18 @@ variables:
       _recursive_: false 
 
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
-out_dir: mimic3\plain
+# out_dir: mimic3\plain
+
+
+
+
+
 include:
   - PatientInfo
   # - Weights
   # - Transfers
   - Diagnoses
-  # - Procedures
+  - Procedures
   # - Medications
   # - LabEvents
   # - ChartEvents
@@ -60,7 +69,7 @@ value_processing:
   _target_: ${variables.value_processing.identity}
   _recursive_: false
   binning_method: 
-    _target_: ${variables.value_processing.binninb_methods.sqr}
+    _target_: ${variables.value_processing.binning_methods.sqr}
     _recursive_: false
   min_events: 0 # minimum number of events in a bin, to get a token assigned
   

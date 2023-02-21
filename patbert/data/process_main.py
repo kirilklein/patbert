@@ -11,12 +11,8 @@ config_path = join(base_dir, 'configs', 'data')
 config_name = "processing"
 
 
-@hydra.main(version_base=None, config_path=config_path, config_name=config_name)
+@hydra.main(version_base="1.1.0rc2", config_path=config_path, config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
-    output_dir = join(base_dir, 'data', 'processed', cfg.out_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    os.chdir(output_dir)
     processor = hydra.utils.instantiate(cfg.processor, cfg=cfg, test=True)
     processor()
     

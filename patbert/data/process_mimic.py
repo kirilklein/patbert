@@ -31,7 +31,6 @@ class MIMIC3Processor(process_base.BaseProcessor):
             batch = next(pf.iter_batches(batch_size = int(1e5))) 
             return pa.Table.from_batches([batch]).to_pandas() 
 
-
 class PatientInfoProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(PatientInfoProcessor, self).__init__(cfg, test)
@@ -117,8 +116,11 @@ class EventProcessor(MIMIC3Processor):
         self.conf = self.cfg[self.concept]
 
     def __call__(self):
+        """Call which is the same for all concept tables"""
         events = self.load()
-        hydra_utils.call(self.conf.group_rare_values, df=events, cols=['CONCEPT'])
+        events = hydra_utils.call(self.conf.group_rare_values, df=events, cols=['CONCEPT'])
+        return events
+        
 
 class DiagnosesProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -126,6 +128,7 @@ class DiagnosesProcessor(EventProcessor):
     
     def __call__(self):
         diagnoses = super().__call__()
+        self.write_concept_to_parquet(diagnoses)
 
 class ProceduresProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -133,6 +136,7 @@ class ProceduresProcessor(EventProcessor):
     
     def __call__(self):
         procedures = super().__call__()
+        self.write_concept_to_parquet(procedures)
 
 class MedicationsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -140,6 +144,8 @@ class MedicationsProcessor(EventProcessor):
 
     def __call__(self):
         medications = super().__call__()
+        self.write_concept_to_parquet(medications)
+
 
 class LabEventsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -147,6 +153,8 @@ class LabEventsProcessor(EventProcessor):
 
     def __call__(self):
         lab_events = super().__call__()
+        self.write_concept_to_parquet(lab_events)
+
 
 class ChartEventsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -154,5 +162,7 @@ class ChartEventsProcessor(EventProcessor):
 
     def __call__(self):
         chartevents = super().__call__()
+        self.write_concept_to_parquet(chartevents)
+
 
 # patients = hydra_utils.call(self.cfg.values_processing, cfg=self.cfg, df=patients)
