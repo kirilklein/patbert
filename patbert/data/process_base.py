@@ -17,28 +17,32 @@ class BaseProcessor():
         """Converts a column to datetime.date format"""
         df[col] = df[col].dt.date
 
-# value processing
-def value_process_identity(cfg, df, *args, **kwargs): # for compatibility with other methods
-    return df
+class ValueProcessing:
+    # value processing
+    @staticmethod
+    def value_process_identity(cfg, df, *args, **kwargs): # for compatibility with other methods
+        return df
+    @staticmethod
+    def value_process_binning(cfg, df):
+        bins = hydra_utils.call(cfg.values_processing.binning_method, df=df)
+        return bins
 
-def value_process_binning(cfg, df):
-    bins = hydra_utils.call(cfg.values_processing.binning_method, df=df)
-    return bins
-
-# binning methods
-def fredman_diaconis_binning(values):
-    max = values.max()
-    min = values.min()
-    IQR = np.percentile(values, 75) - np.percentile(values, 25)
-    n = len(values)
-    n_cr = n ** (1 / 3)
-    bin_width = 2 * IQR / n_cr
-    # n_bins = int(np.ceil(((max - min) / bin_width)))
-    return np.arange(min, max+bin_width, bin_width)
-
-def square_root_binning(values):
-    max = values.max()
-    min = values.min()
-    sqn = np.sqrt(len(values))
-    bin_width = (max-min) / sqn
-    return np.arange(min, max+bin_width, bin_width)
+class BinningMethods:
+    # binning methods
+    @staticmethod
+    def fredman_diaconis_binning(values):
+        max = values.max()
+        min = values.min()
+        IQR = np.percentile(values, 75) - np.percentile(values, 25)
+        n = len(values)
+        n_cr = n ** (1 / 3)
+        bin_width = 2 * IQR / n_cr
+        # n_bins = int(np.ceil(((max - min) / bin_width)))
+        return np.arange(min, max+bin_width, bin_width)
+    @staticmethod
+    def square_root_binning(values):
+        max = values.max()
+        min = values.min()
+        sqn = np.sqrt(len(values))
+        bin_width = (max-min) / sqn
+        return np.arange(min, max+bin_width, bin_width)

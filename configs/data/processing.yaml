@@ -1,24 +1,48 @@
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
 out_dir: mimic3\plain
-values_processing: 
-  _target_: __main__.process_base.value_process_identity
-  _recursive_: false
-  # _target_: __main__.process_mimic.value_process_binning
-  # _target_: __main__.process_mimic.value_process_keep_value
-  binning_method: 
-    _target_: __main__.process_base.square_root_binning
-    _recursive_: false
-  min_events: 0 
-  
+include:
+  - PatientInfo
+  # - Weights
+  # - Transfers
+  - Diagnoses
+  # - Procedures
+  # - Medications
+  - LabEvents
+  # - ChartEvents
 processor:
   _target_: __main__.process_mimic.MIMIC3Processor
   _recursive_: false
+
+# tables
 patients_info:
-  group_rare_values: true
+  group_rare_values: false
   group_rare_values_cols: ['INSURANCE', 'LANGUAGE', 'RELIGION', 'MARITAL_STATUS', 'ETHNICITY']
   rare_threshold: 10 # as a count
-diag:
-  group_rare_values: true
-  rare_threshold: 10
 weight:
   drop_constant: true # drop unchanging measurements
+transfers:
+  group_rare_values: false
+diag:
+  group_rare_values: false
+  rare_threshold: 10
+pro:
+  group_rare_values: false
+med:
+  group_rare_values: false
+lab:
+  group_rare_values: false
+chartevents:
+  group_rare_values: false
+
+
+
+values_processing: 
+  _target_: __main__.process_base.ValueProcessing.value_process_identity
+  # _target_: __main__.process_mimic.value_process_binning
+  # _target_: __main__.process_mimic.value_process_keep_value
+  _recursive_: false
+  binning_method: 
+    _target_: __main__.process_base.BinningMethods.square_root_binning
+    _recursive_: false
+  min_events: 0 # minimum number of events in a bin, to get a token assigned
+  

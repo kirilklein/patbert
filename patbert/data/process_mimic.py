@@ -79,7 +79,18 @@ class TransfersProcessor(MIMIC3Processor):
         transfers = self.load()
         # we will separate THOSPITAL in categores based on ADMIT_TYPE
         transfers.loc[transfers.CONCEPT=='THOSPITAL', 'CONCEPT'] = transfers.CONCEPT + '_' + transfers.ADMISSION_TYPE
-
+        # transfers =
+    
+    @staticmethod
+    def separate_start_end(transfers):
+        """Separate transfers into start and end events"""
+        transfers_start = transfers.copy()
+        transfers_end = transfers.copy()
+        transfers_start['CONCEPT'] = transfers_start['CONCEPT'] + '_START'
+        transfers_end['CONCEPT'] = transfers_end['CONCEPT'] + '_END'
+        transfers_end = transfers_end.rename(columns={'TIMESTAMP_END': 'TIMESTAMP'})
+        transfers = pd.concat([transfers_start, transfers_end])
+        return transfers
 
 class WeightsProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
@@ -91,8 +102,9 @@ class WeightsProcessor(MIMIC3Processor):
         weights = self.load()
         if self.conf.drop_constant:
             weights = self.drop_constant_weight(weights)
-
-    def drop_constant_weight(self, weights):
+    
+    @staticmethod
+    def drop_constant_weight(weights):
         """There are many repeating weight measurements with unchanged weight. 
         Keep only the first one, or when weight changes"""
         weights['weight_diff'] = weights.groupby('PID').VALUE.diff()
