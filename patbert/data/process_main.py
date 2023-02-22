@@ -11,11 +11,10 @@ config_path = join(base_dir, 'configs', 'data')
 config_name = "processing"
 
 
-@hydra.main(version_base="1.1.0rc2", config_path=config_path, config_name=config_name)
+@hydra.main(version_base="1.3.0", config_path=config_path, config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
     processor = hydra.utils.instantiate(cfg.processor, cfg=cfg, test=True)
     processor()
-    
 
 if __name__=='__main__':
     my_app()

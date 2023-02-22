@@ -1,9 +1,11 @@
+import time
+from collections import Counter
+
 import matplotlib.pyplot as plt
 import numpy as np
 from dirty_cat import SimilarityEncoder
 from sklearn.manifold import MDS
 from sklearn.neighbors import NearestNeighbors
-from collections import Counter
 
 
 def similarity_encode(df, col):
@@ -50,3 +52,16 @@ def zipfs_law_plot(df, ax, name, col='CONCEPT'):
     ax.set_title(f'{name}',  clip_on=False, y=.85)
     ax.set_xlabel(f'Log(freq.)')
     ax.set_ylabel(f'Log(number)')
+
+
+def timing_function(function):
+    """
+    A decorator that prints the time a function takes to execute.
+    """
+    def wrapper(*args, **kwargs):
+        t1 = time.time()
+        result = function(*args, **kwargs)
+        t2 = time.time()
+        print(f'{function.__qualname__!r}: {(t2 - t1)/60:.1f} mins')
+        return result
+    return wrapper

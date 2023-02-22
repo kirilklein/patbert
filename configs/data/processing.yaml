@@ -1,6 +1,8 @@
 hydra:
   run:
     dir: data/processed/mimic3/plain #output dir
+  job:
+    chdir: true
 
 variables:
   concept_processing:
@@ -24,14 +26,12 @@ data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\proc
 
 
 
-
-
 include:
   - PatientInfo
-  # - Weights
+  - Weights
   # - Transfers
-  - Diagnoses
-  - Procedures
+  # - Diagnoses
+  # - Procedures
   # - Medications
   # - LabEvents
   # - ChartEvents
@@ -50,7 +50,7 @@ patients_info:
 
 weight:
   drop_constant: true # drop unchanging measurements
-transfers:
+transfer:
   group_rare_values: ${variables.concept_processing.no_grouping}
 diag:
   group_rare_values: ${variables.concept_processing.no_grouping}
@@ -60,7 +60,7 @@ med:
   group_rare_values: ${variables.concept_processing.no_grouping}
 lab:
   group_rare_values: ${variables.concept_processing.no_grouping}
-chartevents:
+chartevent:
   group_rare_values: ${variables.concept_processing.no_grouping}
 
 

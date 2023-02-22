@@ -11,14 +11,12 @@ class BaseProcessor():
     def __init__(self, cfg) -> None:
         self.cfg = cfg
         
-    
     @staticmethod
     def convert_to_date(df, col):
         """Converts a column to datetime.date format"""
         df[col] = df[col].dt.date
     
     def write_concept_to_parquet(self, df):
-        print(hydra_utils.get_original_cwd())
         pq.write_table(pa.Table.from_pandas(df), join(os.getcwd(), f'concept.{self.concept}.parquet'))
 
 class ValueProcessing:

@@ -1,11 +1,13 @@
+import os
 from os.path import join
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.parquet as pq
 from hydra import utils as hydra_utils
 from pyarrow.parquet import ParquetFile
 
-from patbert.data import process_base
+from patbert.data import process_base, utils
 
 
 class MIMIC3Processor(process_base.BaseProcessor):
@@ -15,7 +17,7 @@ class MIMIC3Processor(process_base.BaseProcessor):
         self.test = test
         self.data_path = self.cfg.data_path
         self.concept = None
-
+    @utils.timing_function
     def __call__(self):
         print("Processing MIMIC-III data")
         for category in self.cfg.include:
@@ -35,11 +37,12 @@ class PatientInfoProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(PatientInfoProcessor, self).__init__(cfg, test)
         self.conf = self.cfg.patients_info
-
+    @utils.timing_function
     def __call__(self):
         patients = self.load_patients()
         patients = self.remove_birthdates(patients)
         hydra_utils.call(self.conf.group_rare_values, df=patients)
+        pq.write_table(pa.Table.from_pandas(patients), join(os.getcwd(), f'concept.{self.concept}.parquet'))
 
     def remove_birthdates(self, patients, threshold=110):
         """
@@ -69,34 +72,14 @@ class PatientInfoProcessor(MIMIC3Processor):
 class TransfersProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
         super(TransfersProcessor, self).__init__(cfg, test)
-        self.conf = self.cfg.transfers
+        self.conf = self.cfg.transfer
         self.concept = "transfer"
-
+    @utils.timing_function
     def __call__(self):
         transfers = self.load()
         transfers = self.separate_start_end(transfers)
-        # transfers = self.append_hospital_admission_type(transfers)
-        # transfers = self.append_hospital_discharge(transfers)
-# to call multiple functions in a row, check out the following syntax:
-        """class Foo:
-    ...
-
-class Bar:
-    def __init__(self, foo):
-        self.foo = foo
-
-bar_conf = {
-    "_target_": "__main__.Bar",
-    "foo": {"_target_": "__main__.Foo"},
-}
-
-bar_factory = instantiate(bar_conf, _partial_=True)
-bar1 = bar_factory()
-bar2 = bar_factory()
-
-assert bar1 is not bar2
-assert bar1.foo is bar2.foo  # the `Foo` instance is re-used here
-"""
+        transfers = self.append_hospital_admission_type(transfers)
+        transfers = self.append_hospital_discharge_location(transfers)
         transfers = self.write_concept_to_parquet(transfers)
     
     @staticmethod
@@ -129,7 +112,7 @@ class WeightsProcessor(MIMIC3Processor):
         super(WeightsProcessor, self).__init__(cfg, test)
         self.conf = self.cfg.weight
         self.concept = "weight"
-
+    @utils.timing_function
     def __call__(self):
         weights = self.load()
         if self.conf.drop_constant:
@@ -144,23 +127,22 @@ class WeightsProcessor(MIMIC3Processor):
         weights = weights.drop(columns=['weight_diff'])
         return weights
 
+# EventProcessor is a base class for all event tables (diagnoses, procedures, etc.)
 class EventProcessor(MIMIC3Processor):
     def __init__(self, cfg, test, concept) -> None:
         super(EventProcessor, self).__init__(cfg, test)
         self.concept = concept
         self.conf = self.cfg[self.concept]
-
     def __call__(self):
         """Call which is the same for all concept tables"""
         events = self.load()
         events = hydra_utils.call(self.conf.group_rare_values, df=events, cols=['CONCEPT'])
         return events
-        
 
 class DiagnosesProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
         super(DiagnosesProcessor, self).__init__(cfg, test, "diag")
-    
+    @utils.timing_function
     def __call__(self):
         diagnoses = super().__call__()
         self.write_concept_to_parquet(diagnoses)
@@ -168,7 +150,7 @@ class DiagnosesProcessor(EventProcessor):
 class ProceduresProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
         super(ProceduresProcessor, self).__init__(cfg, test, "pro")
-    
+    @utils.timing_function
     def __call__(self):
         procedures = super().__call__()
         self.write_concept_to_parquet(procedures)
@@ -176,7 +158,7 @@ class ProceduresProcessor(EventProcessor):
 class MedicationsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
         super(MedicationsProcessor, self).__init__(cfg, test, "med")
-
+    @utils.timing_function
     def __call__(self):
         medications = super().__call__()
         self.write_concept_to_parquet(medications)
@@ -185,7 +167,7 @@ class MedicationsProcessor(EventProcessor):
 class LabEventsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
         super(LabEventsProcessor, self).__init__(cfg, test, "lab")
-
+    @utils.timing_function
     def __call__(self):
         lab_events = super().__call__()
         self.write_concept_to_parquet(lab_events)
@@ -193,8 +175,8 @@ class LabEventsProcessor(EventProcessor):
 
 class ChartEventsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
-        super(ChartEventsProcessor, self).__init__(cfg, test, "chartvent")
-
+        super(ChartEventsProcessor, self).__init__(cfg, test, "chartevent")
+    @utils.timing_function
     def __call__(self):
         chartevents = super().__call__()
         self.write_concept_to_parquet(chartevents)
