@@ -1,5 +1,5 @@
 from sequence_creators import BaseCreator
-
+from patbert.data import utils
 
 class FeatureMaker():
     def __init__(self, cfg, test=False):
@@ -13,7 +13,7 @@ class FeatureMaker():
         self.pipeline = self.create_pipeline()
 
         
-
+    @utils.timing_function
     def __call__(self):
         concepts = None
         for creator in self.pipeline:

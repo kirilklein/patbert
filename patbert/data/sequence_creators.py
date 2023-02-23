@@ -7,13 +7,14 @@ from os.path import join
 import pandas as pd
 import pyarrow as pa
 from pyarrow.parquet import ParquetFile
+from patbert.data import utils
 
 
 class BaseCreator():
     def __init__(self, config, test=False):
         self.config: dict = config
         self.test = test
-        self.nrows = 10000 
+        self.nrows = 100
 
     def __call__(self, concepts):
         return self.create(concepts)
@@ -39,7 +40,7 @@ class BaseCreator():
                 df = pd.read_parquet(file_path)
             else:
                 pf = ParquetFile(file_path)
-                batch = next(pf.iter_batches(batch_size = int(1e5))) 
+                batch = next(pf.iter_batches(batch_size = self.nrows)) 
                 df = pa.Table.from_batches([batch]).to_pandas()
         else:
             raise ValueError(f'File type {file_type} not supported')
@@ -48,6 +49,7 @@ class BaseCreator():
 
 class ConceptCreator(BaseCreator):
     feature = 'concept'
+    @utils.timing_function
     def create(self, concepts):
         # Get all concept files
         if not os.path.exists(self.config.data_dir):
@@ -58,32 +60,28 @@ class ConceptCreator(BaseCreator):
             path = [p for p in path if p.split('.')[1] in self.config.concepts]
         # Load concepts
         concepts = pd.concat([self.read_file(self.config, p) for p in path]).reset_index(drop=True)
-        if not isinstance(concepts.TIMESTAMP[0], datetime):
-            concepts['TIMESTAMP'] = pd.to_datetime(concepts['TIMESTAMP'].str.slice(stop=10))
         concepts = concepts.sort_values('TIMESTAMP')
 
         return concepts
 
 class AgeCreator(BaseCreator):
     feature = 'age'
+    @utils.timing_function
     def create(self, concepts):
         patients_info_file = glob.glob('patients_info.*', root_dir=self.config.data_dir)[0]
         patients_info = self.read_file(self.config, patients_info_file)
-        print(patients_info.head())
         # Create PID -> BIRTHDATE dict
         birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
         # Calculate age
-        print(concepts.head())
         ages = concepts.apply(lambda x: ((x['TIMESTAMP'] - birthdates[x['PID']]).days // 365.25) if birthdates[x['PID']] is not None else -100, axis=1)
         # ages = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates)).dt.days // 365.25
-        
-
 
         concepts['AGE'] = ages
         return concepts
 
 class AbsposCreator(BaseCreator):
     feature = 'abspos'
+    @utils.timing_function
     def create(self, concepts):
         abspos = self.config.abspos
         origin_point = datetime(abspos.year, abspos.month, abspos.day)
@@ -95,6 +93,7 @@ class AbsposCreator(BaseCreator):
 
 class SegmentCreator(BaseCreator):
     feature = 'segment'
+    @utils.timing_function
     def create(self, concepts):
         # Infer NaNs in ADMISSION_ID
         segments = concepts.groupby('PID')['ADMISSION_ID'].transform(lambda x: pd.factorize(x)[0]+1)
@@ -105,13 +104,14 @@ class SegmentCreator(BaseCreator):
 
 class BackgroundCreator(BaseCreator):
     feature = 'background'
+    @utils.timing_function
     def create(self, concepts):
         patients_info_file = glob.glob('patients_info.*', root_dir=self.config.data_dir)[0]
         patients_info = self.read_file(self.config, patients_info_file)
 
         background = {
-            'PID': patients_info['PID'].tolist() * len(self.config.background),
-            'CONCEPT': itertools.chain.from_iterable([patients_info[col].tolist() for col in self.config.background])
+            'PID': patients_info['PID'].tolist() * len(self.config.features.background),
+            'CONCEPT': itertools.chain.from_iterable([patients_info[col].tolist() for col in self.config.features.background])
         }
 
         for feature in self.config.features:
