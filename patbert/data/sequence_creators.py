@@ -34,23 +34,17 @@ class BaseCreator():
         datetime_cols = ['TIMESTAMP', 'BIRTHDATE', 'DEATHDATE']
         if file_type == 'csv':
             df = pd.read_csv(file_path, nrows= self.nrows if self.test else None)
-            df = self.datetime_conversion(df, datetime_cols)
-            return df
         elif file_type == 'parquet':
             if not self.test:
                 df = pd.read_parquet(file_path)
-                self.datetime_conversion(df, datetime_cols)
-                print(df.dtypes)
-                assert False
-                return  df
             else:
                 pf = ParquetFile(file_path)
                 batch = next(pf.iter_batches(batch_size = int(1e5))) 
                 df = pa.Table.from_batches([batch]).to_pandas()
-                df = self.datetime_conversion(df, datetime_cols)
-                return  df
         else:
             raise ValueError(f'File type {file_type} not supported')
+        return self.datetime_conversion(df, datetime_cols)
+        
 
 class ConceptCreator(BaseCreator):
     feature = 'concept'
@@ -64,7 +58,6 @@ class ConceptCreator(BaseCreator):
             path = [p for p in path if p.split('.')[1] in self.config.concepts]
         # Load concepts
         concepts = pd.concat([self.read_file(self.config, p) for p in path]).reset_index(drop=True)
-        # check if TIMESTAMP is of datetime type, if not convert it
         if not isinstance(concepts.TIMESTAMP[0], datetime):
             concepts['TIMESTAMP'] = pd.to_datetime(concepts['TIMESTAMP'].str.slice(stop=10))
         concepts = concepts.sort_values('TIMESTAMP')
