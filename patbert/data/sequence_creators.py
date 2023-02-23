@@ -15,7 +15,7 @@ class BaseCreator():
     def __init__(self, config, test=False):
         self.config: dict = config
         self.test = test
-        self.nrows = 100
+        self.nrows = 10000
 
     def __call__(self, concepts):
         return self.create(concepts)
@@ -74,12 +74,9 @@ class AgeCreator(BaseCreator):
         # Create PID -> BIRTHDATE dict
         birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
         # Calculate age
-        # ages = concepts.apply(lambda x: ((x['TIMESTAMP'] - birthdates[x['PID']]).days // 365.25) if birthdates[x['PID']] is not None else -100, axis=1)
-        # create ages series of length concepts filled with -100
-        ages = pd.Series(np.full(len(concepts), -100))
+        ages = pd.Series(np.full(len(concepts), -100)) # if no birthdate, age = -100
         bd_mask = concepts['PID'].map(birthdates).notnull()
         ages.loc[bd_mask] = (concepts.loc[bd_mask, 'TIMESTAMP'] - concepts.loc[bd_mask, 'PID'].map(birthdates)).dt.days // 365.25
-        # ages = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates)).dt.days // 365.25
 
         concepts['AGE'] = ages
         return concepts
@@ -118,12 +115,12 @@ class BackgroundCreator(BaseCreator):
             'PID': patients_info['PID'].tolist() * len(self.config.features.background),
             'CONCEPT': itertools.chain.from_iterable([patients_info[col].tolist() for col in self.config.features.background])
         }
-
+        
         for feature in self.config.features:
-            if feature != self.feature:
+            if feature not in ['concept','background']:                    
                 background[feature.upper()] = 0
-
         background = pd.DataFrame(background)
+        print(background)
 
         return pd.concat([background, concepts])
         

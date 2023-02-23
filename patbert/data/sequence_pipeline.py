@@ -29,7 +29,7 @@ class FeatureMaker():
         # Pipeline creation
         pipeline = []
         for feature in self.config.features:
-            pipeline.append(creators[feature](self.config))
+            pipeline.append(creators[feature](self.config, test=self.test))
             if feature != 'background':
                 self.features.setdefault(feature, [])
 
