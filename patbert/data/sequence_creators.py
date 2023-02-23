@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 from os.path import join
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 from pyarrow.parquet import ParquetFile
@@ -73,7 +74,11 @@ class AgeCreator(BaseCreator):
         # Create PID -> BIRTHDATE dict
         birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
         # Calculate age
-        ages = concepts.apply(lambda x: ((x['TIMESTAMP'] - birthdates[x['PID']]).days // 365.25) if birthdates[x['PID']] is not None else -100, axis=1)
+        # ages = concepts.apply(lambda x: ((x['TIMESTAMP'] - birthdates[x['PID']]).days // 365.25) if birthdates[x['PID']] is not None else -100, axis=1)
+        # create ages series of length concepts filled with -100
+        ages = pd.Series(np.full(len(concepts), -100))
+        bd_mask = concepts['PID'].map(birthdates).notnull()
+        ages.loc[bd_mask] = (concepts.loc[bd_mask, 'TIMESTAMP'] - concepts.loc[bd_mask, 'PID'].map(birthdates)).dt.days // 365.25
         # ages = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates)).dt.days // 365.25
 
         concepts['AGE'] = ages
