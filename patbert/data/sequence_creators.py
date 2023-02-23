@@ -1,45 +1,119 @@
-from creators import BaseCreator
+import glob
+import itertools
+from datetime import datetime
+from os.path import join
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+from pyarrow.parquet import ParquetFile
 
 
-class FeatureMaker():
-    def __init__(self, config):
-        self.config = config
+class BaseCreator():
+    def __init__(self, cfg, test=False):
+        self.config: dict = cfg
+        self.test = test
+        self.nrows = 1000 
 
-        self.features = {}
+    def __call__(self, concepts):
+        return self.create(concepts)
 
-        self.pipeline = self.create_pipeline()
+    def create(self):
+        raise NotImplementedError
 
-    def __call__(self):
-        concepts = None
-        for creator in self.pipeline:
-            concepts = creator(concepts)
+    def read_file(self, cfg, file_path) -> pd.DataFrame:
+        file_path = join(cfg.data_dir, file_path)
 
-        features = self.create_features(concepts)
+        file_type = file_path.split(".")[-1]
+        if file_type == 'csv':
+            return pd.read_csv(file_path, nrows= self.nrows if self.test else None)
+        elif file_type == 'parquet':
+            if not self.test:
+                return pd.read_parquet(join(self.data_path,f"concept.{self.concept}.parquet"))
+            else:
+                pf = ParquetFile(join(self.data_path,f"concept.{self.concept}.parquet"))
+                batch = next(pf.iter_batches(batch_size = int(1e5))) 
+                return pa.Table.from_batches([batch]).to_pandas() 
+        else:
+            raise ValueError(f'File type {file_type} not supported')
 
-        return features
-    
-    def create_pipeline(self):
-        features = list(self.config.features.keys())[0]
-        if features[0] != 'concept':
-            raise ValueError('Concept must be first feature')
-        if 'background' in features and features[-1] != 'background':
-            raise ValueError('Background must be last feature')
+class ConceptCreator(BaseCreator):
+    feature = 'concept'
+    def create(self, concepts):
+        # Get all concept files
+        path = glob.glob('concept.*', root_dir=self.config.data_dir)
 
-        creators = {creator.feature: creator for creator in BaseCreator.__subclasses__()}
+        # Filter out concepts files
+        if self.config.get('concepts') is not None:
+            path = [p for p in path if p.split('.')[1] in self.config.concepts]
+        
+        # Load concepts
+        concepts = pd.concat([self.read_file(self.config, p) for p in path]).reset_index(drop=True)
+        
+        concepts['TIMESTAMP'] = pd.to_datetime(concepts['TIMESTAMP'].str.slice(stop=10))
+        concepts = concepts.sort_values('TIMESTAMP')
 
-        pipeline = []
+        return concepts
+
+class AgeCreator(BaseCreator):
+    feature = 'age'
+    def create(self, concepts):
+        patients_info_file = glob.glob('patients_info.*', root_dir=self.config.data_dir)[0]
+        patients_info = self.read_file(self.config, patients_info_file)
+        # Create PID -> BIRTHDATE dict
+        birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
+        # Calculate approximate age
+        ages = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates)).dt.days // 365.25
+
+        concepts['AGE'] = ages
+        return concepts
+
+class AbsposCreator(BaseCreator):
+    feature = 'abspos'
+    def create(self, concepts):
+        abspos = self.config.abspos
+        origin_point = datetime(abspos.year, abspos.month, abspos.day)
+        # Calculate days since origin point
+        abspos = (concepts['TIMESTAMP'] - origin_point).dt.days
+
+        concepts['ABSPOS'] = abspos
+        return concepts
+
+class SegmentCreator(BaseCreator):
+    feature = 'segment'
+    def create(self, concepts):
+        # Infer NaNs in ADMISSION_ID
+        concepts['ADMISSION_ID'] = self._infer_admission_id(concepts)
+
+        segments = concepts.groupby('PID')['ADMISSION_ID'].transform(lambda x: pd.factorize(x)[0]+1)
+
+        concepts['SEGMENT'] = segments
+        return concepts
+
+    def _infer_admission_id(self, df):
+        bf = df.sort_values('PID')
+        mask = bf['ADMISSION_ID'].fillna(method='ffill') != bf['ADMISSION_ID'].fillna(method='bfill')   # Find NaNs between similar admission IDs
+        bf.loc[mask, 'ADMISSION_ID'] = bf.loc[mask, 'ADMISSION_ID'].map(lambda x: 'unq_') + list(map(str, range(mask.sum())))   # Assign unique IDs to non-inferred NaNs
+        bf['ADMISSION_ID'] = bf['ADMISSION_ID'].fillna(method='ffill')  # Assign neighbour IDs to inferred NaNs
+        
+        return bf['ADMISSION_ID']
+
+class BackgroundCreator(BaseCreator):
+    feature = 'background'
+    def create(self, concepts):
+        patients_info_file = glob.glob('patients_info.*', root_dir=self.config.data_dir)[0]
+        patients_info = self.read_file(self.config, patients_info_file)
+
+        background = {
+            'PID': patients_info['PID'].tolist() * len(self.config.background),
+            'CONCEPT': itertools.chain.from_iterable([patients_info[col].tolist() for col in self.config.background])
+        }
+
         for feature in self.config.features:
-            pipeline.append(creators[feature](self.config))
-            if feature != 'background':
-                self.features.setdefault(feature, [])
+            if feature != self.feature:
+                background[feature.upper()] = 0
 
-        return pipeline
+        background = pd.DataFrame(background)
 
-    def create_features(self, concepts):
-        def add_to_features(patient):
-            for feature, value in self.features.items():
-                value.append(patient[feature.upper()].tolist())
-        concepts.groupby('PID').apply(add_to_features)
-
-        return self.features
-
+        return pd.concat([background, concepts])
+        
