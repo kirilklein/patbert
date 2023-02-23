@@ -42,7 +42,7 @@ class PatientInfoProcessor(MIMIC3Processor):
         patients = self.load_patients()
         patients = self.remove_birthdates(patients)
         hydra_utils.call(self.conf.group_rare_values, df=patients)
-        pq.write_table(pa.Table.from_pandas(patients), join(os.getcwd(), f'concept.{self.concept}.parquet'))
+        pq.write_table(pa.Table.from_pandas(patients), join(os.getcwd(), f'patients_info.parquet'))
 
     def remove_birthdates(self, patients, threshold=110):
         """
@@ -117,6 +117,7 @@ class WeightsProcessor(MIMIC3Processor):
         weights = self.load()
         if self.conf.drop_constant:
             weights = self.drop_constant_weight(weights)
+        self.write_concept_to_parquet(weights)
     
     @staticmethod
     def drop_constant_weight(weights):
