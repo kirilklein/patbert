@@ -21,20 +21,20 @@ variables:
       _target_: __main__.process_base.ValueProcessing.value_process_identity
       _recursive_: false 
 
+
+
+
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
-# out_dir: mimic3\plain
-
-
 
 include:
   - PatientInfo
   - Weights
-  # - Transfers
-  # - Diagnoses
-  # - Procedures
-  # - Medications
-  # - LabEvents
-  # - ChartEvents
+  - Transfers
+  - Diagnoses
+  - Procedures
+  - Medications
+  - LabEvents
+  - ChartEvents
 processor:
   _target_: __main__.process_mimic.MIMIC3Processor
   _recursive_: false
