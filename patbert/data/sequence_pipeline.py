@@ -1,4 +1,4 @@
-from creators import BaseCreator
+from sequence_creators import BaseCreator
 
 
 class FeatureMaker():
@@ -20,10 +20,9 @@ class FeatureMaker():
     
     def create_pipeline(self):
         features = list(self.config.features.keys())[0]
-        if features[0] != 'concept':
-            raise ValueError('Concept must be first feature')
-        if 'background' in features and features[-1] != 'background':
-            raise ValueError('Background must be last feature')
+        if 'background' in features:
+            features.remove('background')
+            features.append('background')
 
         creators = {creator.feature: creator for creator in BaseCreator.__subclasses__()}
 

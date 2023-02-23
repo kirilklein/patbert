@@ -13,8 +13,8 @@ base_dir = dirname(dirname(dirname(realpath(__file__))))
 config_path = join(base_dir, 'configs', 'data')
 
 @hydra.main(config_name='loading.yaml', config_path=config_path, version_base='1.3')
-def sequentialize(cfg):
-    creator = hydra.utils.instantiate(cfg.creator, cfg=cfg, test=True)
+def sequentialize(config):
+    creator = hydra.utils.instantiate(config.creator, config=config, test=True)
     creator()
 
 

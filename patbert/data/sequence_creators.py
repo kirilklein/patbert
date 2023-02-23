@@ -5,15 +5,14 @@ from os.path import join
 
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 from pyarrow.parquet import ParquetFile
 
 
 class BaseCreator():
-    def __init__(self, cfg, test=False):
-        self.config: dict = cfg
+    def __init__(self, config, test=False):
+        self.config: dict = config
         self.test = test
-        self.nrows = 1000 
+        self.nrows = 10000 
 
     def __call__(self, concepts):
         return self.create(concepts)
@@ -23,7 +22,6 @@ class BaseCreator():
 
     def read_file(self, cfg, file_path) -> pd.DataFrame:
         file_path = join(cfg.data_dir, file_path)
-
         file_type = file_path.split(".")[-1]
         if file_type == 'csv':
             return pd.read_csv(file_path, nrows= self.nrows if self.test else None)
