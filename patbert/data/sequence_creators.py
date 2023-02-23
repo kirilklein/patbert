@@ -81,20 +81,11 @@ class SegmentCreator(BaseCreator):
     feature = 'segment'
     def create(self, concepts):
         # Infer NaNs in ADMISSION_ID
-        concepts['ADMISSION_ID'] = self._infer_admission_id(concepts)
-
         segments = concepts.groupby('PID')['ADMISSION_ID'].transform(lambda x: pd.factorize(x)[0]+1)
 
         concepts['SEGMENT'] = segments
         return concepts
 
-    def _infer_admission_id(self, df):
-        bf = df.sort_values('PID')
-        mask = bf['ADMISSION_ID'].fillna(method='ffill') != bf['ADMISSION_ID'].fillna(method='bfill')   # Find NaNs between similar admission IDs
-        bf.loc[mask, 'ADMISSION_ID'] = bf.loc[mask, 'ADMISSION_ID'].map(lambda x: 'unq_') + list(map(str, range(mask.sum())))   # Assign unique IDs to non-inferred NaNs
-        bf['ADMISSION_ID'] = bf['ADMISSION_ID'].fillna(method='ffill')  # Assign neighbour IDs to inferred NaNs
-        
-        return bf['ADMISSION_ID']
 
 class BackgroundCreator(BaseCreator):
     feature = 'background'

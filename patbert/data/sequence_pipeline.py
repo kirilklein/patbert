@@ -20,6 +20,7 @@ class FeatureMaker():
     
     def create_pipeline(self):
         features = list(self.config.features.keys())[0]
+        features.insert(0, 'concept')
         if 'background' in features:
             features.remove('background')
             features.append('background')
