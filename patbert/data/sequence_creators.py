@@ -77,8 +77,7 @@ class AgeCreator(BaseCreator):
         # Create PID -> BIRTHDATE dict
         birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
         # Calculate age
-        # set missing to last timestamp + x, such that 
-        ages = pd.Series(np.full(len(concepts), -100)) # if no birthdate, age = -100
+        ages = pd.Series(np.full(len(concepts), None)) 
         # add 10 years to the maximal timestamp
         time_diff = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates))
         ages = time_diff.dt.seconds / (365.25 * 24 * 60 * 60)
