@@ -122,8 +122,10 @@ class BackgroundCreator(BaseCreator):
         for feature in self.config.features:
             if feature not in ['concept','background']:                    
                 background[feature.upper()] = 0
-        background = pd.DataFrame(background)
-        background['CONCEPT'] = background['CONCEPT'].map(lambda x: '.' + x)
+        # TODO: figure out way to prepend
+        # background = pd.DataFrame(background)
+        # all concept must be str
+        # background['CONCEPT'] = background['CONCEPT'].astype(str).map(lambda x: '.' + x)
         return pd.concat([background, concepts])
 
         
