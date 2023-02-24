@@ -120,7 +120,8 @@ class BackgroundCreator(BaseCreator):
             if feature not in ['concept','background']:                    
                 background[feature.upper()] = 0
         background = pd.DataFrame(background)
-        print(background)
-
         return pd.concat([background, concepts])
+
+class DeathPredictionCreator:
+    pass
         

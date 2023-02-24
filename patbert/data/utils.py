@@ -65,3 +65,18 @@ def timing_function(function):
         print(f'{function.__qualname__!r}: {(t2 - t1)/60:.1f} mins')
         return result
     return wrapper
+
+def sequence_train_test_split(sequence, config):
+    train_dic, test_dic = {}, {}
+    data_size = len(sequence['concept'])
+    test_size = int(config.test_size * data_size)
+    
+    # split the data into train and test sets
+    test_indices = np.random.choice(data_size, test_size, replace=False)
+    train_indices = np.array(list(set(range(data_size)) - set(test_indices)))
+    # create a dictionary with the train and test indices for each concept
+    for key in sequence.keys():
+        feature = np.array(sequence[key], dtype=object)
+        train_dic[key] = feature[train_indices].tolist()
+        test_dic[key] = feature[test_indices].tolist()
+    return train_dic, test_dic
