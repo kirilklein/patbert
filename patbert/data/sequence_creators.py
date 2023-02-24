@@ -123,6 +123,7 @@ class BackgroundCreator(BaseCreator):
             if feature not in ['concept','background']:                    
                 background[feature.upper()] = 0
         background = pd.DataFrame(background)
+        background['CONCEPT'] = background['CONCEPT'].map(lambda x: '.' + x)
         return pd.concat([background, concepts])
 
         
