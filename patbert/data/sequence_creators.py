@@ -71,13 +71,17 @@ class AgeCreator(BaseCreator):
     def create(self, concepts):
         patients_info_file = glob.glob('patients_info.*', root_dir=self.config.data_dir)[0]
         patients_info = self.read_file(self.config, patients_info_file)
+        # replace missing birthdates with last timestamp + 10 years (negative age)
+        birthdate_none = patients_info['BIRTHDATE'].isnull()
+        patients_info.loc[birthdate_none, 'BIRTHDATE'] = concepts['TIMESTAMP'].max() + pd.Timedelta(365.25 * 10, unit='days')
         # Create PID -> BIRTHDATE dict
         birthdates = pd.Series(patients_info['BIRTHDATE'].values, index=patients_info['PID']).to_dict()
         # Calculate age
+        # set missing to last timestamp + x, such that 
         ages = pd.Series(np.full(len(concepts), -100)) # if no birthdate, age = -100
-        bd_mask = concepts['PID'].map(birthdates).notnull()
-        ages.loc[bd_mask] = (concepts.loc[bd_mask, 'TIMESTAMP'] - concepts.loc[bd_mask, 'PID'].map(birthdates)).dt.days // 365.25
-
+        # add 10 years to the maximal timestamp
+        time_diff = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates))
+        ages = time_diff.dt.seconds / (365.25 * 24 * 60 * 60)
         concepts['AGE'] = ages
         return concepts
 
@@ -122,6 +126,4 @@ class BackgroundCreator(BaseCreator):
         background = pd.DataFrame(background)
         return pd.concat([background, concepts])
 
-class DeathPredictionCreator:
-    pass
         
