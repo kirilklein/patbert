@@ -80,7 +80,7 @@ class AgeCreator(BaseCreator):
         ages = pd.Series(np.full(len(concepts), None)) 
         # add 10 years to the maximal timestamp
         time_diff = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates))
-        ages = time_diff.dt.seconds / (24 * 60 * 60)
+        ages = time_diff.dt.total_seconds() / (365.25 * 24 * 60 * 60)
         concepts['AGE'] = ages # in days
         return concepts
 
