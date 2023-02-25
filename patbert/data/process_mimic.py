@@ -17,6 +17,7 @@ class MIMIC3Processor(process_base.BaseProcessor):
         self.test = test
         self.data_path = self.cfg.data_path
         self.concept = None
+        
     @utils.timing_function
     def __call__(self):
         print("Processing MIMIC-III data")
@@ -24,7 +25,6 @@ class MIMIC3Processor(process_base.BaseProcessor):
             print(f":{category}")
             processor = globals()[f"{category}Processor"](self.cfg, self.test)
             processor()
-    
     def load(self):
         if not self.test:
             return pd.read_parquet(join(self.data_path,f"concept.{self.concept}.parquet"))
@@ -32,6 +32,12 @@ class MIMIC3Processor(process_base.BaseProcessor):
             pf = ParquetFile(join(self.data_path,f"concept.{self.concept}.parquet"))
             batch = next(pf.iter_batches(batch_size = int(1e5))) 
             return pa.Table.from_batches([batch]).to_pandas() 
+
+    def load_transfers(self):
+        transfers = pd.read_parquet(join(self.data_path,"concept.transfer.parquet"))
+        self.convert_to_date(transfers, "TIMESTAMP")
+        self.convert_to_date(transfers, "TIMESTAMP_END")
+        return transfers
 
 class PatientInfoProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
@@ -54,6 +60,7 @@ class PatientInfoProcessor(MIMIC3Processor):
         transfers = pd.merge(transfers, patients[["PID", "BIRTHDATE"]], on="PID", how="left")
         transfers["admission_age"] = (transfers.TIMESTAMP - transfers.BIRTHDATE).map(lambda x: x.days / 365.25)
         remove_pids = transfers[transfers.admission_age > threshold].PID.unique()
+        print(":: Removing birthdates for", len(remove_pids), "patients")
         patients.loc[patients.PID.isin(remove_pids), "BIRTHDATE"] = pd.NaT
         return patients
 
@@ -63,11 +70,7 @@ class PatientInfoProcessor(MIMIC3Processor):
         self.convert_to_date(patients, "DEATHDATE")
         return patients
 
-    def load_transfers(self):
-        transfers = pd.read_parquet(join(self.data_path,"concept.transfer.parquet"))
-        self.convert_to_date(transfers, "TIMESTAMP")
-        self.convert_to_date(transfers, "TIMESTAMP_END")
-        return transfers
+    
 
 class TransfersProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
@@ -137,6 +140,7 @@ class EventProcessor(MIMIC3Processor):
     def __call__(self):
         """Call which is the same for all concept tables"""
         events = self.load()
+        events = self.drop_missing_timestamps(events)
         events = hydra_utils.call(self.conf.group_rare_values, df=events, cols=['CONCEPT'])
         return events
 

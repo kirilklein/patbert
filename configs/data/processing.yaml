@@ -23,8 +23,7 @@ variables:
 
 
 
-
-data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\processed\mimic-iii-clinical-database-1.4
+data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\formatted\mimic-iii-clinical-database-1.4
 
 include:
   - PatientInfo

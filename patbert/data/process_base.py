@@ -19,6 +19,13 @@ class BaseProcessor():
     def write_concept_to_parquet(self, df):
         pq.write_table(pa.Table.from_pandas(df), join(os.getcwd(), f'concept.{self.concept}.parquet'))
 
+    @staticmethod
+    def drop_missing_timestamps(df):
+        if 'TIMESTAMP' in df.columns:
+            print(f":::: drop missing timestamps {df['TIMESTAMP'].isnull().sum()/len(df):.2%}")
+            df = df[df['TIMESTAMP'].notnull()]
+        return df
+
 class ValueProcessing:
     # value processing
     @staticmethod

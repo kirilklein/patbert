@@ -80,8 +80,8 @@ class AgeCreator(BaseCreator):
         ages = pd.Series(np.full(len(concepts), None)) 
         # add 10 years to the maximal timestamp
         time_diff = (concepts['TIMESTAMP'] - concepts['PID'].map(birthdates))
-        ages = time_diff.dt.seconds / (365.25 * 24 * 60 * 60)
-        concepts['AGE'] = ages
+        ages = time_diff.dt.seconds / (24 * 60 * 60)
+        concepts['AGE'] = ages # in days
         return concepts
 
 class AbsposCreator(BaseCreator):
@@ -123,7 +123,7 @@ class BackgroundCreator(BaseCreator):
             if feature not in ['concept','background']:                    
                 background[feature.upper()] = 0
         # TODO: figure out way to prepend
-        # background = pd.DataFrame(background)
+        background = pd.DataFrame(background)
         # all concept must be str
         # background['CONCEPT'] = background['CONCEPT'].astype(str).map(lambda x: '.' + x)
         return pd.concat([background, concepts])
