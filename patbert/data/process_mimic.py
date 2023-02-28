@@ -1,5 +1,7 @@
+import datetime
 import os
 from os.path import join
+from shutil import copyfile
 
 import pandas as pd
 import pyarrow as pa
@@ -22,9 +24,12 @@ class MIMIC3Processor(process_base.BaseProcessor):
     def __call__(self):
         print("Processing MIMIC-III data")
         for category in self.cfg.include:
-            print(f":{category}")
+            print(f" :{category}")
             processor = globals()[f"{category}Processor"](self.cfg, self.test)
-            processor()
+            if processor.concept in self.cfg.no_processing:
+                self.copy_table_to_processed_folder(processor.concept)
+            else:
+                processor()
     def load(self):
         if not self.test:
             return pd.read_parquet(join(self.data_path,f"concept.{self.concept}.parquet"))
@@ -38,6 +43,13 @@ class MIMIC3Processor(process_base.BaseProcessor):
         self.convert_to_date(transfers, "TIMESTAMP")
         self.convert_to_date(transfers, "TIMESTAMP_END")
         return transfers
+    
+    def copy_table_to_processed_folder(self, concept):
+        # copy file from data_path to new folder
+        src_path = join(self.data_path,f"concept.{concept}.parquet")
+        dest_path = join(os.getcwd(), f"concept.{concept}.parquet")
+        copyfile(src_path, dest_path)
+        
 
 class PatientInfoProcessor(MIMIC3Processor):
     def __init__(self, cfg, test) -> None:
@@ -59,9 +71,9 @@ class PatientInfoProcessor(MIMIC3Processor):
         transfers = transfers.loc[transfers['CONCEPT']=="THOSPITAL"]
         transfers = pd.merge(transfers, patients[["PID", "BIRTHDATE"]], on="PID", how="left")
         transfers["admission_age"] = (transfers.TIMESTAMP - transfers.BIRTHDATE).map(lambda x: x.days / 365.25)
-        remove_pids = transfers[transfers.admission_age > threshold].PID.unique()
-        print(":: Removing birthdates for", len(remove_pids), "patients")
-        patients.loc[patients.PID.isin(remove_pids), "BIRTHDATE"] = pd.NaT
+        change_bd = transfers[transfers.admission_age > threshold].PID.unique()
+        print("  :: Change birthdates for", len(change_bd), "patients , by adding 200 years.")
+        patients.loc[patients.PID.isin(change_bd), "BIRTHDATE"] = patients.loc[patients.PID.isin(change_bd), "BIRTHDATE"] + datetime.timedelta(days=365.25*200)
         return patients
 
     def load_patients(self,):
@@ -137,6 +149,7 @@ class EventProcessor(MIMIC3Processor):
         super(EventProcessor, self).__init__(cfg, test)
         self.concept = concept
         self.conf = self.cfg[self.concept]
+
     def __call__(self):
         """Call which is the same for all concept tables"""
         events = self.load()
@@ -177,6 +190,13 @@ class LabEventsProcessor(EventProcessor):
         lab_events = super().__call__()
         self.write_concept_to_parquet(lab_events)
 
+class MicrobiologyProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(MicrobiologyProcessor, self).__init__(cfg, test, "microbio")
+    @utils.timing_function
+    def __call__(self):
+        microbiology_events = super().__call__()
+        self.write_concept_to_parquet(microbiology_events)
 
 class ChartEventsProcessor(EventProcessor):
     def __init__(self, cfg, test) -> None:
@@ -186,5 +206,12 @@ class ChartEventsProcessor(EventProcessor):
         chartevents = super().__call__()
         self.write_concept_to_parquet(chartevents)
 
+class ChartEventsMainProcessor(EventProcessor):
+    def __init__(self, cfg, test) -> None:
+        super(ChartEventsMainProcessor, self).__init__(cfg, test, "chartevent_main")
+    @utils.timing_function
+    def __call__(self):
+        chartevents = super().__call__()
+        self.write_concept_to_parquet(chartevents)
 
 # patients = hydra_utils.call(self.cfg.values_processing, cfg=self.cfg, df=patients)

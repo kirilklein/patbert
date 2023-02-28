@@ -1,9 +1,12 @@
+test: false
+
 hydra:
   run:
-    dir: data/processed/mimic3/plain #output dir
+    dir: data/processed/mimic3/plain # output dir
   job:
     chdir: true
 
+# put functions here and call them with variables.
 variables:
   concept_processing:
     grouping:
@@ -22,7 +25,8 @@ variables:
       _recursive_: false 
 
 
-
+# path of the formatted data (patients_info.parquet, concept.{concept}.parquet)
+# concept should at least have: PID, CONCEPT, TIMESTAMP
 data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\ehr_preprocess\data\formatted\mimic-iii-clinical-database-1.4
 
 include:
@@ -34,6 +38,8 @@ include:
   - Medications
   - LabEvents
   - ChartEvents
+  - Microbiology
+
 processor:
   _target_: __main__.process_mimic.MIMIC3Processor
   _recursive_: false
@@ -47,9 +53,10 @@ patients_info:
     cols: ['INSURANCE', 'LANGUAGE', 'RELIGION', 'MARITAL_STATUS', 'ETHNICITY']
     rare_threshold: 10 # 10 by default
 
+no_processing: ['chartevent_main', 'chartevent', 'lab', 'microbio'] # just copies the table, no processing
 weight:
   drop_constant: true # drop unchanging measurements
-transfer:
+transfer: 
   group_rare_values: ${variables.concept_processing.no_grouping}
 diag:
   group_rare_values: ${variables.concept_processing.no_grouping}
@@ -61,7 +68,10 @@ lab:
   group_rare_values: ${variables.concept_processing.no_grouping}
 chartevent:
   group_rare_values: ${variables.concept_processing.no_grouping}
-
+chartevent_main:
+  group_rare_values: ${variables.concept_processing.no_grouping}
+microbio:
+  group_rare_values: ${variables.concept_processing.no_grouping}
 
 # General
 value_processing: 
