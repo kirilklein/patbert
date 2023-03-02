@@ -1,0 +1,12 @@
+test: false
+
+hydra:
+  run:
+    dir: data/tokenized/mimic3/plain # output dir
+  job:
+    chdir: true
+
+data_path: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\patbert\data\sequence\mimic3\plain\small\sequence_train.pt
+hierarchical: false
+pad_len: 100
+

@@ -83,7 +83,7 @@ class SKSVocabConstructor():
         self.codes = self.medcodes.codes
         self.main_vocab = main_vocab
         self.vocabs = []
-        self.special_tokens = [k for k in main_vocab if k.startswith('<')]
+        self.special_tokens = [k for k in main_vocab if k.startswith('[')]
         if isinstance(additional_types, type(None)):
             self.additional_types=['D', 'M', 'L']
         self.num_levels = num_levels
@@ -94,9 +94,9 @@ class SKSVocabConstructor():
         return self.vocabs
 
     def get_birthmonth(self): # needs to be time2vec later
-        return [k for k in self.main_vocab if k.startswith('<BIRTHMONTH>')]
+        return [k for k in self.main_vocab if k.startswith('[BIRTHMONTH]')]
     def get_birthyear(self): # needs to be time2vec later
-        return [k for k in self.main_vocab if k.startswith('<BIRTHMONTH>')]
+        return [k for k in self.main_vocab if k.startswith('[BIRTHMONTH]')]
 
     def construct_vocab_dic(self, level):
         """construct a dictionary of codes and their topics"""
@@ -116,7 +116,7 @@ class SKSVocabConstructor():
     
     def get_type_vocab(self, all_codes):
         """Uses the temporary vocabulary to assign a category to each code."""
-        vocab = {'<ZERO>':0}
+        vocab = {'[ZERO]':0}
         temp_vocab = self.get_temp_vocab_type()
         all_codes += self.special_tokens
         for code in all_codes:
@@ -124,11 +124,11 @@ class SKSVocabConstructor():
                     vocab[code] = temp_vocab[code[0]]
                 else:
                     # special tokens
-                    vocab[code] = temp_vocab[code.split('>')[0]+'>']
+                    vocab[code] = temp_vocab[code.split(']')[0]+']']
         return vocab
 
     def get_first_level_vocab(self):
-        vocab = {'<ZERO>':0}
+        vocab = {'[ZERO]':0}
         for code in self.medcodes.get_atc()+self.medcodes.get_icd():
             vocab[code] = self.topic(code) # only icd and atc codes so far
         for i, code in enumerate(self.medcodes.get_lab()):
@@ -139,13 +139,13 @@ class SKSVocabConstructor():
             vocab[code] = i+1
         for i, code in enumerate(self.get_birthmonth()):
             vocab[code] = i+1
-        vocab['<SEX>0'] = 1
-        vocab['<SEX>1'] = 2
+        vocab['[SEX]0'] = 1
+        vocab['[SEX]1'] = 2
         return vocab
     
     def get_lower_level_vocab(self, level):
         # Looks good so far
-        vocab = {'<ZERO>':0}
+        vocab = {'[ZERO]':0}
         for code in self.medcodes.get_lab():
             vocab[code] = 0
         vocab = self.add_icd_to_vocab(vocab, level)
@@ -156,7 +156,7 @@ class SKSVocabConstructor():
 
     def get_temp_vocab_type(self):
         """Get a temporary vocab for types of codes e.g. <CLS>, <SEX>..."""
-        temp_keys = [code.split('>')[0]+'>' for code in self.special_tokens]
+        temp_keys = [code.split(']')[0]+']' for code in self.special_tokens]
         temp_keys += self.additional_types 
         temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
         return temp_vocab
@@ -189,7 +189,7 @@ class SKSVocabConstructor():
     def add_special_to_vocab(self, vocab):
         """Add special tokens to vocab, at levels lower than 1, we append zeros 
         which will be turned into zero vectors"""
-        special_codes = [k for k in self.main_vocab if k.startswith('<')]
+        special_codes = [k for k in self.main_vocab if k.startswith('[')]
         for code in special_codes:
             vocab[code] = 0
         return vocab
@@ -248,7 +248,7 @@ class SKSVocabConstructor():
         return vocab
     def get_temp_vocab_icd(self, level):
         """Construct a temporary vocabulary for categories for icd codes"""
-        temp_vocab = {'<ZERO>':0,'<UNK>':1}                
+        temp_vocab = {'[ZERO]':0,'[UNK]':1}                
         special_codes_u = ['DUA', 'DUB', 'DUH', 'DUP', 'DUT'] # different birth-related codes
         special_codes_v = ['DVA', 'DVRA', 'DVRB', 'DVRK01'] # placenta weight, height weight ...
         special_codes = special_codes_u + special_codes_v
@@ -283,7 +283,7 @@ class SKSVocabConstructor():
 
     def get_temp_vocab_atc(self, level):
         """Construct a temporary vocabulary for categories for atc codes"""
-        temp_vocab = {'<ZERO>':0,'<UNK>':1}                
+        temp_vocab = {'[ZERO]':0,'[UNK]':1}                
         if level==2:
             temp_vocab = self.two_digit_vocab(temp_vocab)
         elif level==3 or level==4:
