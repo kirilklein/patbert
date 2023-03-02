@@ -1,0 +1,26 @@
+test: false
+
+hydra:
+  run:
+    dir: data\sequence\mimic3\plain\small #output dir
+  job:
+    chdir: true
+
+data_dir: C:\Users\fjn197\PhD\projects\PHAIR\pipelines\patbert\data\processed\mimic3\plain
+test_size: 0.15 # in percent
+
+concepts: 
+  - patients_info
+  # - diag
+  - med
+  - lab
+  # - chartevent
+  # - pro
+  # - transfer
+  # - microbio
+
+features: 
+  concept: true
+  age: true
+  segment: true
+  background: ['GENDER', 'INSURANCE', 'MARITAL_STATUS', 'RELIGION', 'LANGUAGE', 'ETHNICITY']
