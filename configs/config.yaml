@@ -1,3 +1,11 @@
+test: false
+
+hydra:
+  run:
+    dir: models/mimic3/plain # output dir
+  job:
+    chdir: true
+
 defaults:
     - _self_ # important, otherwise keeps params from this config
     - data: synthetic

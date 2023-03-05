@@ -123,10 +123,3 @@ def random_mask_arr(idxs, vocab, mask_prob=0.15,
         size=replace_mask.sum())
     return masked_idxs, labels
 
-def split_train_val(self, dataset):
-        val_size = self.cfg.training.validation_size
-        print(f"Use {val_size*100}% of data for validation")
-        train_dataset, val_dataset = random_split(dataset, 
-                    [1-val_size, val_size],
-                    generator=torch.Generator().manual_seed(42))
-        return train_dataset, val_dataset

@@ -13,7 +13,7 @@ def tokenize(cfg):
     Tokenizer = tokenizer.BaseTokenizer(pad_len=cfg.pad_len)
     tok_data = Tokenizer.batch_encode(data)
     torch.save(tok_data, join(os.getcwd(), 'tokenized_data.pt'))
-    torch.save(Tokenizer.vocab, join(os.getcwd(), 'vocabulary.pt'))
+    torch.save(Tokenizer.vocabulary, join(os.getcwd(), 'vocabulary.pt'))
     print(f"tokenized data and vocabulary saved in {os.getcwd()}")
 
 if __name__ == "__main__":

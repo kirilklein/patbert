@@ -27,7 +27,7 @@ class BaseTokenizer():
     def batch_encode(self, seqs):
         seqs['idx'] = []
         for i in tqdm(range(len(seqs['concept']))):
-            seqs['concept'].append(self.encode_seq(seqs['concept'][i]))
+            seqs['idx'].append(self.encode_seq(seqs['concept'][i]))
         del seqs['concept']
         return seqs
 
