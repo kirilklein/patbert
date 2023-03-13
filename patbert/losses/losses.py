@@ -12,7 +12,8 @@ def flat_softmax_cross_entropy(leaf_logits, y_true_enc, leaf_nodes):
         y_true_enc (torch.tensor): Target vector (batchsize, seq_len, levels)
         leaf_nodes (torch.tensor): Leaf nodes (num_leaf_nodes, levels)
     Returns:
-        Cross entropy loss"""
+        Cross entropy loss
+    """
     leaf_probs = softmax(leaf_logits, dim=-1)
     selected_leaf_probs = get_leaf_node_probabilities(leaf_probs, y_true_enc, leaf_nodes)
     # print(selected_leaf_probs)
