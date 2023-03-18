@@ -8,6 +8,8 @@ import torch
 import typer
 
 from patbert.common import medical
+from typing import Dict
+from collections import defaultdict
 
 # get path of script
 
@@ -36,9 +38,20 @@ class DataGenerator(super):
         self.num_lab_tests = num_lab_test
         self.start_date = start_date
         self.rng = np.random.default_rng(seed)
-    
+
+    def __call__(self) -> Dict:
+        """Generates a dictionary which contains concepts, visits, ages and absolute positions"""
+        data = defaultdict(list)
+        for _ in range(self.num_patients):
+            concepts, visits, ages, absolute_position = self.generate_patient_history()
+            data['concepts'].append(concepts)
+            data['visits'].append(visits)
+            data['ages'].append(ages)
+            data['absolute_position'].append(absolute_position)
+        return data
+
     # generate atc codes
-    def generate_patient_history(self, pid):
+    def generate_patient_history(self):
         """Generates a dictionary which contains sex, ages, length of stay, codes, lab tests, lab tests visits"""
         num_visits = self.rng.integers(self.min_num_visits, self.max_num_visits)
         num_codes_per_visit_ls = self.rng.integers(self.min_num_codes_per_visit, 
@@ -58,25 +71,19 @@ class DataGenerator(super):
         codes = np.array(codes)[idx].tolist()
         values = np.array(values)[idx].tolist()
         visit_nums = np.arange(1, num_visits+1) # should start with 1!
-        visit_nums = np.repeat(visit_nums, num_codes_per_visit_ls).tolist()
+        visits = np.repeat(visit_nums, num_codes_per_visit_ls).tolist()
         
         birthdate = self.generate_birthdate()
         ages = self.generate_ages(num_visits, birthdate) # pass age as days or rounded years?
         ages = np.repeat(ages, num_codes_per_visit_ls).tolist()
         absolute_position = self.generate_absolute_position(ages, los, birthdate) # in days
 
-        patient_dic = {
-            'pid':pid,
-            'birthdate': birthdate,
-            'sex':self.generate_sex(),
-            'codes':codes,
-            'ages':ages,
-            #'los':los,
-            'visits':visit_nums,
-            'abs_pos':absolute_position,
-            'values':values
-        }
-        return patient_dic
+        concepts = ['[SEX]'+str(self.generate_sex()), '[SEP]'] + codes
+        ages = [0,0] + ages
+        visits = [0,0] + visits
+        absolute_position = [0,0] + absolute_position
+
+        return concepts, visits, ages,  absolute_position
 
 
     def generate_ages(self, num_visits, birthdate):
@@ -145,8 +152,7 @@ def main(save_name: str = typer.Option('synthetic',
         min_los, max_los, num_atc_codes, num_icd_codes, num_lab_tests, seed=seed)
 
     base_dir = dirname(dirname(dirname(realpath(__file__))))
-    save_path = join(base_dir, 'data', 'processed' ,save_name + '.pt')
-    torch.save([hist for hist in generator.simulate_data()], save_path)
-    #print([hist for hist in generator.simulate_data()])
+    save_path = join(base_dir, 'data', 'sequence', 'synthetic' ,save_name + '.pt')
+    torch.save(generator(), save_path)
 if __name__ == '__main__':
     typer.run(main)

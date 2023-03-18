@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from patbert.features import utils
 
+from patbert.common import medical
 
 class BaseTokenizer():
     def __init__(self, pad_len, vocabulary=None):
@@ -180,4 +181,7 @@ class EHRTokenizer(BaseTokenizer):
         print(f"Writing vocab to {dest}")
         torch.save(self.vocabulary, dest)
 
+class HierarchicalTokenizer():
+    """Tokenizer for hierarchical data"""
+    def __init__(self, max_len=None, len_background=0,):
 
