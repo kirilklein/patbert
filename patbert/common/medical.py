@@ -80,7 +80,7 @@ class SKSVocabConstructor():
     def __init__(self, main_vocab=None, additional_types=None, num_levels=6):
         self.medcodes = MedicalCodes()
         self.codes = self.medcodes.codes
-        
+
         if isinstance(main_vocab, type(None)):
             self.special_tokens = ['[CLS]', '[PAD]', '[SEP]', '[MASK]', '[UNK]',]
             self.main_vocab = {token: idx for idx,
@@ -95,11 +95,24 @@ class SKSVocabConstructor():
             self.additional_types=['D', 'M', 'L']
         self.num_levels = num_levels
     def __call__(self):
-        """return vocab dics"""
+        """Return vocab, mapping concepts to tuples, where each tuple element is a code on a level"""
+        tuple_vocab = {}
         for level in range(self.num_levels):
             self.vocabs.append(self.construct_vocab_dic(level))
-        return self.vocabs
+        for concept in self.vocabs[0]:
+            tuple_vocab[concept] = self.map_concept_to_tuple(concept)
+        return tuple_vocab
 
+    def map_concept_to_tuple(self, concept):
+        """Using the list of vocabs, map a concept to a tuple of integers"""
+        tuple_of_integers = []
+        for vocabulary in self.vocabs:
+            if concept in vocabulary:
+                tuple_of_integers.append(vocabulary[concept])
+            else:
+                tuple_of_integers.append(vocabulary["[UNK]"])
+        return tuple(tuple_of_integers)
+    
     def get_birthmonth(self): # needs to be time2vec later
         return [k for k in self.main_vocab if k.startswith('[BIRTHMONTH]')]
     def get_birthyear(self): # needs to be time2vec later
