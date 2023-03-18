@@ -77,8 +77,12 @@ class DataGenerator(super):
         ages = self.generate_ages(num_visits, birthdate) # pass age as days or rounded years?
         ages = np.repeat(ages, num_codes_per_visit_ls).tolist()
         absolute_position = self.generate_absolute_position(ages, los, birthdate) # in days
-
-        concepts = ['[SEX]'+str(self.generate_sex()), '[SEP]'] + codes
+        sex_int = self.generate_sex()
+        if sex_int == 1:
+            sex = 'M'
+        else:
+            sex = 'F'
+        concepts = [sex, '[SEP]'] + codes
         ages = [0,0] + ages
         visits = [0,0] + visits
         absolute_position = [0,0] + absolute_position
