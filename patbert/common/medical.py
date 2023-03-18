@@ -76,14 +76,21 @@ class MedicalCodes():
         return sorted(self.get_codes_type('und'))
 
 class SKSVocabConstructor():
-    """get a list of SKS codes of a certain type
-    We will construct a dictionary for Lab Tests on the fly"""
-    def __init__(self, main_vocab, additional_types=None, num_levels=6):
+    """Construct a vocabulary for SKS codes on all levels"""
+    def __init__(self, main_vocab=None, additional_types=None, num_levels=6):
         self.medcodes = MedicalCodes()
         self.codes = self.medcodes.codes
-        self.main_vocab = main_vocab
+        
+        if isinstance(main_vocab, type(None)):
+            self.special_tokens = ['[CLS]', '[PAD]', '[SEP]', '[MASK]', '[UNK]',]
+            self.main_vocab = {token: idx for idx,
+                               token in enumerate(self.special_tokens)}
+        else:
+            self.main_vocab = main_vocab
+            self.special_tokens = [k for k in main_vocab if k.startswith('[')]
+            
         self.vocabs = []
-        self.special_tokens = [k for k in main_vocab if k.startswith('[')]
+
         if isinstance(additional_types, type(None)):
             self.additional_types=['D', 'M', 'L']
         self.num_levels = num_levels
@@ -155,10 +162,11 @@ class SKSVocabConstructor():
         return vocab 
 
     def get_temp_vocab_type(self):
-        """Get a temporary vocab for types of codes e.g. <CLS>, <SEX>..."""
+        """Get a temporary vocab for types of codes e.g. [CLS], [SEX], Diagnoses"""
         temp_keys = [code.split(']')[0]+']' for code in self.special_tokens]
         temp_keys += self.additional_types 
         temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
+        print(temp_vocab)
         return temp_vocab
 
     def add_icd_to_vocab(self, vocab, level):
