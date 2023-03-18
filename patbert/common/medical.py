@@ -82,7 +82,7 @@ class SKSVocabConstructor():
         self.codes = self.medcodes.codes
 
         if isinstance(main_vocab, type(None)):
-            self.special_tokens = ['[CLS]', '[PAD]', '[SEP]', '[MASK]', '[UNK]',]
+            self.special_tokens = ['[CLS]', '[PAD]', '[SEP]', '[MASK]', '[UNK]', '[MALE]', '[FEMALE]']
             self.main_vocab = {token: idx for idx,
                                token in enumerate(self.special_tokens)}
         else:
@@ -159,8 +159,6 @@ class SKSVocabConstructor():
             vocab[code] = i+1
         for i, code in enumerate(self.get_birthmonth()):
             vocab[code] = i+1
-        vocab['[SEX]0'] = 1
-        vocab['[SEX]1'] = 2
         return vocab
     
     def get_lower_level_vocab(self, level):
@@ -179,7 +177,6 @@ class SKSVocabConstructor():
         temp_keys = [code.split(']')[0]+']' for code in self.special_tokens]
         temp_keys += self.additional_types 
         temp_vocab = {token:idx for idx, token in enumerate(temp_keys)}
-        print(temp_vocab)
         return temp_vocab
 
     def add_icd_to_vocab(self, vocab, level):
