@@ -1,3 +1,8 @@
+from patbert.common import medical
+
+
+class HierarchicalTokenizer():
+    """Tokenize a sequence of concepts into a sequence of tokens."""
 
 
 def zero_tuple(t, i):
