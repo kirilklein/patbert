@@ -2,19 +2,24 @@ import numpy as np
 import torch
 from numpy.random import default_rng
 from torch.utils.data.dataset import Dataset
+from patbert.common.common import dotdict
 
+from typing import List, Dict
+from omegaconf import OmegaConf
 
 class MLM_PLOS_Dataset(Dataset):
-    def __init__(self, data, vocab, cfg):
-        self.data = data
+    def __init__(self, data: Dict[str, List[List]], vocab: Dict, cfg: OmegaConf):
+        self.data = data 
         self.vocab = vocab
+        if not isinstance(cfg, OmegaConf):
+            cfg = dotdict(cfg)
         self.channels = cfg.data.channels
         self.plos_global = cfg.training.tasks.plos_global
         self.plos_threshold = cfg.training.tasks.plos_threshold
         self.init_pad_len(data, cfg.data.pad_len)
         self.mask_prob = cfg.data.mask_prob
         self.init_nonspecial_ids()
-        self.pad_tokens = {'idx':self.vocab['<PAD>'],
+        self.pad_tokens = {'idx':self.vocab['[PAD]'],
                             'labels':-100,
                             'abs_pos':0,
                             'visits':0,
@@ -50,7 +55,7 @@ class MLM_PLOS_Dataset(Dataset):
     
     def mask_values(self, ids, values):
         """Mask values the same way ids were masked"""
-        mask_id = self.vocab['<MASK>']
+        mask_id = self.vocab['[MASK]']
         mask = np.array(ids)==mask_id
         values = np.array(values)
         values[mask] = 1
@@ -70,7 +75,7 @@ class MLM_PLOS_Dataset(Dataset):
 
     def init_nonspecial_ids(self):
         """We use by default < as special sign for special tokens"""
-        self.nonspecial_ids = [v for k,v in self.vocab.items() if not k.startswith('<')]
+        self.nonspecial_ids = [v for k,v in self.vocab.items() if not k.startswith('[')]
         
     def seq_padding(self, seq, pad_token):
         """Pad a sequence to the given length."""
@@ -90,7 +95,7 @@ class MLM_PLOS_Dataset(Dataset):
                 prob = rng.uniform()  
                 # 80% of the time replace with [MASK] 
                 if prob < 0.8:
-                    masked_ids[i] = self.vocab['<MASK>']
+                    masked_ids[i] = self.vocab['[MASK]']
                 # 10% change token to random token
                 elif prob < 0.9:      
                     masked_ids[i] = rng.choice(self.nonspecial_ids) 
