@@ -44,10 +44,10 @@ class DataGenerator(super):
         data = defaultdict(list)
         for _ in range(self.num_patients):
             concepts, visits, ages, absolute_position = self.generate_patient_history()
-            data['concepts'].append(concepts)
-            data['visits'].append(visits)
-            data['ages'].append(ages)
-            data['absolute_position'].append(absolute_position)
+            data['concept'].append(concepts)
+            data['segment'].append(visits)
+            data['age'].append(ages)
+            data['abspos'].append(absolute_position)
         return data
 
     # generate atc codes
@@ -79,9 +79,9 @@ class DataGenerator(super):
         absolute_position = self.generate_absolute_position(ages, los, birthdate) # in days
         sex_int = self.generate_sex()
         if sex_int == 1:
-            sex = 'M'
+            sex = '[MALE]'
         else:
-            sex = 'F'
+            sex = '[FEMALE]'
         concepts = [sex, '[SEP]'] + codes
         ages = [0,0] + ages
         visits = [0,0] + visits
