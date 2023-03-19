@@ -42,6 +42,11 @@ def get_last_nonzero_idx(x, axis):
     last_nonzero[~any_mask] = x.shape[axis]-1 # last element along this axis
     return last_nonzero
 
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
 
 def load_data(cfg):
     return Data(cfg).get_tokenized_data()
