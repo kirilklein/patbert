@@ -38,6 +38,7 @@ class CE_MOP_FlatSoftmax(torch.nn.Module):
     The call method takes the predicted leaf probabilities (batchsize, seq_len, num_leaf_nodes) and the target vector (batchsize, seq_len, levels), and returns the loss.
     """
     def __init__(self, leaf_nodes, trainable_weights=0) -> None:
+        super(CE_MOP_FlatSoftmax, self).__init__()  # Add this line
         self.leaf_nodes = leaf_nodes
         self.lvl_mappings = self.get_level_mappings()
         self.lvl_sel_mats, self.nodes = self.construct_level_selection_mats_and_graph() # when leaf_probs multiplied fir lvl_sel_mat from the left -> probs on that level
@@ -46,7 +47,7 @@ class CE_MOP_FlatSoftmax(torch.nn.Module):
             self.weights.requires_grad = True
     
 
-    def __call__(self, predicted_leaf_probs:torch.tensor, y_true_enc:torch.tensor)->float:
+    def forward(self, predicted_leaf_probs:torch.tensor, y_true_enc:torch.tensor)->float:
         loss = 0
         # predictions is in shape (batchsize, seq_len, num_leaf_nodes), we reshape to (batchsize * seq_len, num_leaf_nodes)
         predicted_leaf_probs = predicted_leaf_probs.reshape(-1, predicted_leaf_probs.shape[-1])
