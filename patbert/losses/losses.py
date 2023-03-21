@@ -1,33 +1,56 @@
-from patbert.losses.utils import get_leaf_node_probabilities
 import torch
 from torch.nn import NLLLoss
 from torch import softmax
 from typing import List
 
-nllloss = NLLLoss()
 
-def flat_softmax_cross_entropy(leaf_logits, y_true_enc, leaf_nodes):
-    """Selects leaf probabilities for a given target tensor.
-    Args:
-        leaf_logits (torch.tensor): Logits (batchsize, num_leaf_nodes)
-        y_true_enc (torch.tensor): Target vector (batchsize, seq_len, levels)
-        leaf_nodes (torch.tensor): Leaf nodes (num_leaf_nodes, levels)
-    Returns:
-        Cross entropy loss
-    """
-    leaf_probs = softmax(leaf_logits, dim=-1)
-    selected_leaf_probs = get_leaf_node_probabilities(leaf_probs, y_true_enc, leaf_nodes)
-    # print(selected_leaf_probs)
-    log_probs = torch.log(selected_leaf_probs)
-    log_probs = log_probs.flatten() # batchsize * seq_len
-    loss = nllloss(log_probs.unsqueeze(-1), torch.zeros_like(log_probs, dtype=torch.int64))
-    return loss
+class CE_FlatSoftmax(torch.nn.Module):
+    """Computing a cross entropy loss on a tree with flat softmax on leaf nodes.
+    Loss is only computed on target level."""
+    def __init__(self, leaf_nodes) -> None:
+        super(CE_FlatSoftmax, self).__init__()  
+        self.leaf_nodes = leaf_nodes
+        self.nllloss = NLLLoss()
+
+    def forward(self, leaf_logits, y_true_enc):
+        """Selects leaf probabilities for a given target tensor.
+        Args:
+            leaf_logits (torch.tensor): Logits (batchsize, num_leaf_nodes)
+            y_true_enc (torch.tensor): Target vector (batchsize, seq_len, levels)
+            leaf_nodes (torch.tensor): Leaf nodes (num_leaf_nodes, levels)
+        Returns:
+            Cross entropy loss
+        """
+        leaf_probs = softmax(leaf_logits, dim=-1)
+        selected_leaf_probs = self.get_leaf_node_probabilities(leaf_probs, y_true_enc)
+        # print(selected_leaf_probs)
+        log_probs = torch.log(selected_leaf_probs)
+        log_probs = log_probs.flatten() # batchsize * seq_len
+        loss = self.nllloss(log_probs.unsqueeze(-1), torch.zeros_like(log_probs, dtype=torch.int64))
+        return loss
+
+    def get_leaf_node_probabilities(self, leaf_probs:torch.tensor, y_true_enc: torch.tensor):
+        """Selects leaf probabilities for a given target tensor.
+        Args:
+            leaf_probs (torch.tensor): Probabilities (batchsize, num_leaf_nodes)
+            y_true_enc (torch.tensor): Target vector (batchsize, seq_len, levels)
+            leaf_nodes (torch.tensor): Leaf nodes (num_leaf_nodes, levels)
+        Returns:
+            torch.tensor: Selected leaf probabilities (batchsize, seq_len)"""
+        # we want to match all the leaf nodes with a target, e.g. target: 1,2,0 should select 1,2,1 and 1,2,2
+        zeros_mask = y_true_enc == 0
+        leaf_mask = (self.leaf_nodes == y_true_enc[:, :, None, :] )| zeros_mask[:, :, None,:] # select all leaf nodes that match the target
+        leaf_mask = leaf_mask.all(dim=-1).to(torch.int16)
+
+        leaf_probs = leaf_probs[:,None,:].expand(leaf_mask.shape) # batch, seq_len, num_leafes
+
+        selected_leaf_probs = leaf_probs * leaf_mask
+        selected_leaf_probs = selected_leaf_probs.sum(dim=-1)
+        return selected_leaf_probs
 
 
-
-
-
-class CE_MOP_FlatSoftmax(torch.nn.Module):
+# TODO: implement CE_FlatSoftmax as special case of CE_FlatSoftmax_MOP, by setting all level contribution except the target level to 0
+class CE_FlatSoftmax_MOP(torch.nn.Module):
     """
     Multiple Operating Points Cross Entropy Loss with flat softmax on leaf nodes.
     
@@ -37,20 +60,23 @@ class CE_MOP_FlatSoftmax(torch.nn.Module):
 
     The call method takes the predicted leaf probabilities (batchsize, seq_len, num_leaf_nodes) and the target vector (batchsize, seq_len, levels), and returns the loss.
     """
-    def __init__(self, leaf_nodes, trainable_weights=0) -> None:
-        super(CE_MOP_FlatSoftmax, self).__init__()  # Add this line
+    def __init__(self, leaf_nodes: torch.tensor, trainable_weights=False) -> None:
+        """Args:
+        leaf_nodes (torch.tensor): Leaf nodes (num_leaf_nodes, levels)
+        trainable_weights (bool, optional): Whether to train the level weights. Defaults to False."""
+        super(CE_FlatSoftmax_MOP, self).__init__()  # Add this line
         self.leaf_nodes = leaf_nodes
         self.lvl_mappings = self.get_level_mappings()
         self.lvl_sel_mats, self.nodes = self.construct_level_selection_mats_and_graph() # when leaf_probs multiplied fir lvl_sel_mat from the left -> probs on that level
         self.weights = self.initialize_geometric_weights()
         if trainable_weights:
             self.weights.requires_grad = True
-    
 
-    def forward(self, predicted_leaf_probs:torch.tensor, y_true_enc:torch.tensor)->float:
-        loss = 0
+    def forward(self, leaf_logits:torch.tensor, y_true_enc:torch.tensor)->float:
+        loss = 0 # we will sum the losses on each level
         # predictions is in shape (batchsize, seq_len, num_leaf_nodes), we reshape to (batchsize * seq_len, num_leaf_nodes)
-        predicted_leaf_probs = predicted_leaf_probs.reshape(-1, predicted_leaf_probs.shape[-1])
+        leaf_logits = leaf_logits.reshape(-1, leaf_logits.shape[-1])
+        predicted_leaf_probs = softmax(leaf_logits, dim=-1)
         for level, mat in enumerate(self.lvl_sel_mats):
             pred_probs_lvl = mat @ predicted_leaf_probs.T # shape (num_nodes, batchsize * seq_len)
             target_probs_lvl = self.construct_target_probability_mat(y_true_enc, level) # we can already pass it as a target!
@@ -66,7 +92,7 @@ class CE_MOP_FlatSoftmax(torch.nn.Module):
 
     def initialize_geometric_weights(self):
         """We initialize weights as e**(-i)"""
-        return torch.exp(-1*torch.arange(len(self.lvl_sel_mats)))
+        return torch.nn.Parameter(torch.exp(-torch.arange(len(self.lvl_sel_mats))))
 
     def get_level_mappings(self):
         """Returns a dictionary, where the key is the level and the value is a tensor
