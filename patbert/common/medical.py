@@ -4,7 +4,7 @@ import pickle as pkl
 import os
 from os.path import join
 import pandas as pd
-
+from typing import List, Dict, Tuple
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 patbert_dir = os.path.dirname(dir_path)
@@ -94,7 +94,7 @@ class SKSVocabConstructor():
         if isinstance(additional_types, type(None)):
             self.additional_types=['D', 'M', 'L']
         self.num_levels = num_levels
-    def __call__(self):
+    def __call__(self)->Dict[str, Tuple]:
         """Return vocab, mapping concepts to tuples, where each tuple element is a code on a level"""
         tuple_vocab = {}
         for level in range(self.num_levels):
